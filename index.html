@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ATLAS_vernacular_case_studies — m_II</title>
+<title>_morphSHIFT1 — vernacular_typologies_and_climate_predictions</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -268,13 +268,13 @@ footer .tag-link{background:var(--terracotta-dim);color:var(--terracotta-deep);p
 
 <div class="chrome-stripe"></div>
 <div class="win-titlebar">
-  <span class="win-title">_atlas</span>
+  <span class="win-title">_morphSHIFT</span>
   <span class="win-controls"><span class="c-min"></span><span class="c-max"></span><span class="c-close"></span></span>
 </div>
 <header class="app-header">
   <div>
     <div class="brand-eyebrow">Vernacular Typology × Climate Correlation</div>
-    <div class="brand-title"><span class="brand-name"><span class="brand-hl">ATLAS</span><span class="brand-rest">_vernacular_case_studies</span></span> <span class="module">m_II · cs_output_v5</span></div>
+    <div class="brand-title"><span class="brand-name"><span class="brand-hl">_morphSHIFT/_climacular??</span><span class="brand-rest"></span></span> <span class="module">vernacular_typologies_and_climate_predictions · cs_output_v5</span></div>
   </div>
   <div class="scenario-control">
     <div class="scenario-label">Climate scenario · SSP5-8.5</div>
@@ -287,7 +287,7 @@ footer .tag-link{background:var(--terracotta-dim);color:var(--terracotta-deep);p
 
 <div class="tab-bar">
   <button class="tab-btn admin-tab" data-tab="admin"><svg class="lock-icon" viewBox="0 0 24 24" width="11" height="11"><path d="M6 10V8a6 6 0 0112 0v2h1a1 1 0 011 1v10a1 1 0 01-1 1H5a1 1 0 01-1-1V11a1 1 0 011-1h1zm2 0h8V8a4 4 0 00-8 0v2z" fill="currentColor"/></svg> <span class="numeral">0</span> Add Case Studies</button>
-  <button class="tab-btn active" data-tab="cases"><span class="numeral">I</span> Vernacular Case Studies</button>
+  <button class="tab-btn active" data-tab="cases"><span class="numeral">I</span> Atlas of Vernacular Case Studies</button>
   <button class="tab-btn" data-tab="findings"><span class="numeral">II</span> Findings &amp; Recommendations</button>
   <button class="tab-btn minor" data-tab="method"><span class="numeral">III</span> Methodology &amp; Limitations</button>
 </div>
@@ -334,7 +334,7 @@ footer .tag-link{background:var(--terracotta-dim);color:var(--terracotta-deep);p
 
   <section class="view" id="view-method">
     <div class="method-wrap">
-      <div class="method-lead">ATLAS is an empirical–quantitative correlation study testing which passive strategies in historical vernacular buildings remain valid under projected future climate, and which require adaptation — paired with a simulation tool that bridges description and prescription.</div>
+      <div class="method-lead">MorphSHIFT is an empirical–quantitative correlation study testing which passive strategies in historical vernacular buildings remain valid under projected future climate, and which require adaptation — paired with a simulation tool that bridges description and prescription.</div>
       <div class="corpus-stats" id="corpusStats"></div>
       <div class="card-window" style="margin:24px 0;">
         <div class="card-titlebar"><span class="win-title">_workflow</span><span class="win-controls"><span class="c-min"></span><span class="c-max"></span><span class="c-close"></span></span></div>
@@ -1575,7 +1575,7 @@ function buildPipeline(){
   s+=`<text x="${x0}" y="18" font-family="IBM Plex Mono" font-size="9" fill="#33424E">DESCRIPTIVE — correlation</text><text x="${x0+5*(w+gap)}" y="18" font-family="IBM Plex Mono" font-size="9" fill="#82479B">PRESCRIPTIVE — validated</text><text x="${x0}" y="${H-8}" font-family="IBM Plex Mono" font-size="9" fill="#C0291F">△ simulation bridges the naturalistic fallacy between the two halves</text></svg>`;
   document.getElementById('pipelineCard').innerHTML=s;
 }
-document.getElementById('footer').innerHTML='ATLAS_vernacular_case_studies · module m_II · <b>MOCKUP</b> built on <span class="tag-link">cs_output_v5.xlsx</span>. Real workbook values are kept; every empty field (Köppen present/2050/2080, Honeybee/E+ simulation, missing geometry, names, coordinates) is filled with plausible <b>demo data</b> so the whole tool is exercised. Nothing here is scientifically validated — it shows how the tool works. Building images are schematics drawn from the metrics; recommendations are heuristic.';
+document.getElementById('footer').innerHTML='_morphSHIFT4 · module m_II · <b>MOCKUP</b> built on <span class="tag-link">cs_output_v5.xlsx</span>. Real workbook values are kept; every empty field (Köppen present/2050/2080, Honeybee/E+ simulation, missing geometry, names, coordinates) is filled with plausible <b>demo data</b> so the whole tool is exercised. Nothing here is scientifically validated — it shows how the tool works. Building images are schematics drawn from the metrics; recommendations are heuristic.';
 
 renderSlider();buildFilters();initMap();applyFilter();renderPanel();buildFindings();buildCorpusStats();buildPipeline();seedDxfFromCases();renderAdminView();
 </script>
