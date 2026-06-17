@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morph Shift — m_II</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+:root{
+  --paper:#F1ECDE;--paper-dim:#E7E0CB;--paper-deep:#DCD3B7;
+  --ink:#1F2421;--ink-soft:#54584F;--ink-faint:#8B8C7E;
+  --terracotta:#C1622E;--terracotta-deep:#9B4A21;--terracotta-dim:#E7C4A8;
+  --slate:#3E5C6B;--slate-dim:#C4D2D6;--moss:#5E7245;--moss-dim:#D7DEC6;
+  --ochre:#B8862F;--ochre-dim:#EAD9B0;--rust:#92392A;--rust-dim:#E3C2BA;
+  --line:#CFC4A4;--line-soft:#DED5BB;
+  /* category colors mirroring the workbook fills */
+  --cat-metric:#C9DAF8;--cat-metric-ink:#2C4A7A;
+  --cat-tag:#D9EAD3;--cat-tag-ink:#3E6B33;
+  --cat-climate:#D9D2E9;--cat-climate-ink:#5B4A86;
+  --cat-sim:#FFF2CC;--cat-sim-ink:#9A7B16;
+  --cat-flag:#F4CCCC;--cat-flag-ink:#9A3A33;
+  --serif:'Fraunces',serif;--sans:'Inter',sans-serif;--mono:'IBM Plex Mono',monospace;
+}
+*{box-sizing:border-box;}html,body{margin:0;padding:0;}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14.5px;line-height:1.45;-webkit-font-smoothing:antialiased;}
+button{font-family:inherit;}
+.nodata{font-family:var(--mono);font-size:10.5px;color:var(--terracotta-deep);background:repeating-linear-gradient(45deg,var(--terracotta-dim),var(--terracotta-dim) 5px,#efd6c1 5px,#efd6c1 10px);border:1px solid var(--terracotta);border-radius:3px;padding:0 5px;display:inline-block;}
+.ph-box{font-family:var(--mono);font-size:11px;color:var(--terracotta-deep);background:repeating-linear-gradient(45deg,rgba(231,196,168,0.35),rgba(231,196,168,0.35) 10px,rgba(241,236,222,0.5) 10px,rgba(241,236,222,0.5) 20px);border:1.5px dashed var(--terracotta);border-radius:8px;display:flex;align-items:center;justify-content:center;text-align:center;padding:14px;line-height:1.5;}
+
+.app-header{background:var(--ink);color:var(--paper);padding:20px 28px 16px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;border-bottom:3px solid var(--terracotta);}
+.brand-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--terracotta-dim);margin-bottom:6px;}
+.brand-title{font-family:var(--serif);font-size:29px;font-weight:600;letter-spacing:-0.01em;display:flex;align-items:baseline;gap:12px;}
+.brand-title .module{font-family:var(--mono);font-size:13px;color:#9AA39E;font-weight:400;}
+.scenario-control{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+.scenario-label{font-family:var(--mono);font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:#9AA39E;}
+.scenario-pills{display:flex;background:#2B312C;border-radius:7px;padding:3px;gap:2px;}
+.scenario-pill{font-family:var(--mono);font-size:12px;padding:7px 13px;border-radius:5px;border:none;background:transparent;color:#AEB6AC;cursor:pointer;transition:.15s;white-space:nowrap;}
+.scenario-pill:hover{color:var(--paper);}
+.scenario-pill.active{background:var(--terracotta);color:#1A1410;font-weight:600;}
+
+.tab-bar{display:flex;gap:2px;padding:0 28px;background:var(--paper-dim);border-bottom:1px solid var(--line);}
+.tab-btn{font-family:var(--mono);font-size:12px;letter-spacing:0.05em;text-transform:uppercase;padding:14px 20px 12px;border:none;background:transparent;color:var(--ink-soft);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:8px;}
+.tab-btn .numeral{font-family:var(--serif);font-size:16px;font-weight:600;color:var(--ink-faint);}
+.tab-btn:hover{color:var(--ink);}
+.tab-btn.active{color:var(--terracotta-deep);border-bottom-color:var(--terracotta);font-weight:600;}
+.tab-btn.active .numeral{color:var(--terracotta);}
+.tab-btn.minor{font-size:11px;color:var(--ink-faint);margin-left:auto;}
+.tab-btn.admin-tab{color:var(--ink-faint);font-size:11px;}
+.tab-btn.admin-tab:hover{color:var(--rust);}
+.tab-btn.admin-tab.active{color:var(--rust);border-bottom-color:var(--rust);}
+.lock-icon{vertical-align:-1px;}
+
+.admin-wrap{max-width:760px;}
+.gate-card{max-width:380px;margin:40px auto;background:#fff;border:1px solid var(--line);border-radius:10px;padding:28px 26px;text-align:center;}
+.gate-card .lock-icon{width:26px;height:26px;color:var(--ink-faint);margin-bottom:10px;}
+.gate-card h2{font-family:var(--serif);font-size:19px;font-weight:600;margin:0 0 6px;}
+.gate-card p{font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin:0 0 16px;line-height:1.5;}
+.gate-input{width:100%;font-family:var(--mono);font-size:13px;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--paper-dim);margin-bottom:10px;}
+.gate-btn{width:100%;font-family:var(--mono);font-size:12.5px;font-weight:600;padding:10px;border:none;border-radius:6px;background:var(--ink);color:var(--paper);cursor:pointer;}
+.gate-btn:hover{background:var(--rust);}
+.gate-error{font-family:var(--mono);font-size:11px;color:var(--rust);margin-top:8px;min-height:14px;}
+
+.admin-section{background:#fff;border:1px solid var(--line);border-radius:10px;padding:20px 22px;margin-bottom:18px;}
+.admin-section-head{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--ink-soft);border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:baseline;}
+.admin-status{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);margin-bottom:12px;}
+.admin-status b{color:var(--ink);}
+.dropzone{border:2px dashed var(--line);border-radius:9px;padding:26px 16px;text-align:center;font-family:var(--mono);font-size:12px;color:var(--ink-faint);cursor:pointer;transition:border-color .15s,background .15s;}
+.dropzone:hover,.dropzone.dragover{border-color:var(--terracotta);background:var(--terracotta-dim);color:var(--terracotta-deep);}
+.dropzone .big{font-family:var(--serif);font-size:15px;font-style:italic;color:var(--ink-soft);display:block;margin-bottom:4px;}
+.dropzone.dragover .big{color:var(--terracotta-deep);}
+.admin-table{width:100%;border-collapse:collapse;margin-top:12px;}
+.admin-table th{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-faint);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);}
+.admin-table td{font-family:var(--mono);font-size:11.5px;padding:7px 8px;border-bottom:1px solid var(--line-soft);}
+.admin-table tr:last-child td{border-bottom:none;}
+.admin-remove{font-family:var(--mono);font-size:10px;color:var(--rust);background:none;border:1px solid var(--rust-dim);border-radius:4px;padding:2px 7px;cursor:pointer;}
+.admin-remove:hover{background:var(--rust-dim);}
+.admin-empty{font-family:var(--mono);font-size:11px;color:var(--ink-faint);padding:8px 0;}
+.admin-note{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);line-height:1.6;margin-top:4px;}
+.admin-success{font-family:var(--mono);font-size:11px;color:var(--moss);background:var(--moss-dim);border-radius:6px;padding:8px 11px;margin-top:10px;}
+.btn-secondary{font-family:var(--mono);font-size:11.5px;padding:7px 13px;border:1px solid var(--line);border-radius:6px;background:var(--paper-dim);color:var(--ink-soft);cursor:pointer;}
+.btn-secondary:hover{border-color:var(--terracotta);color:var(--terracotta-deep);}
+
+main{padding:22px 28px 50px;max-width:1500px;margin:0 auto;}
+.view{display:none;}.view.active{display:block;}
+
+.filter-bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:14px;}
+.filter-group{display:flex;flex-direction:column;gap:4px;}
+.filter-group .fl{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-faint);}
+.filter-group select{font-family:var(--sans);font-size:12.5px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--paper-dim);color:var(--ink);}
+.tag-filter{display:flex;gap:6px;flex-wrap:wrap;}
+.tag-toggle{font-family:var(--mono);font-size:11px;padding:5px 10px;border-radius:20px;border:1px solid var(--line);background:var(--paper-dim);color:var(--ink-soft);cursor:pointer;}
+.tag-toggle.on{background:var(--moss);border-color:var(--moss);color:#fff;font-weight:600;}
+.filter-count{font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-left:auto;}
+.filter-reset{font-family:var(--mono);font-size:11px;background:transparent;border:1px solid var(--line);color:var(--ink-soft);padding:5px 10px;border-radius:6px;cursor:pointer;}
+
+.explorer-grid{display:grid;grid-template-columns:1.32fr 1fr;gap:18px;align-items:start;}
+.map-col{display:flex;flex-direction:column;gap:10px;position:sticky;top:14px;align-self:start;}
+.map-card{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative;}
+#map{height:560px;width:100%;background:var(--paper-dim);}
+.map-legend{position:absolute;bottom:12px;left:12px;background:rgba(241,236,222,0.94);border:1px solid var(--line);border-radius:7px;padding:9px 11px;font-family:var(--mono);font-size:10.5px;z-index:500;line-height:1.7;}
+.legend-row{display:flex;align-items:center;gap:7px;}
+.legend-dot{width:9px;height:9px;border-radius:50%;flex:none;}
+.legend-dot.pending{background:transparent;border:1.5px dashed #8B8C7E;}
+.leaflet-control-attribution{font-family:var(--mono)!important;font-size:9px!important;background:rgba(241,236,222,0.85)!important;}
+.unmapped{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 14px;}
+.unmapped .ul{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-faint);margin-bottom:7px;}
+.unmapped-chips{display:flex;flex-wrap:wrap;gap:5px;}
+.uchip{font-family:var(--mono);font-size:10.5px;padding:3px 8px;border:1px solid var(--line);border-radius:5px;background:var(--paper-dim);color:var(--ink-soft);cursor:pointer;}
+.uchip:hover{border-color:var(--terracotta);color:var(--terracotta-deep);}
+
+.panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:20px 22px;height:660px;overflow-y:auto;}
+.panel::-webkit-scrollbar{width:9px;}
+.panel::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;}
+.panel::-webkit-scrollbar-track{background:transparent;}
+.empty-panel{display:flex;flex-direction:column;align-items:center;justify-content:center;height:560px;text-align:center;color:var(--ink-faint);font-family:var(--mono);font-size:12.5px;gap:10px;}
+.empty-panel .big{font-family:var(--serif);font-size:22px;color:var(--ink-soft);font-style:italic;}
+
+.panel-eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px;}
+.cs-title{font-family:var(--serif);font-size:24px;font-weight:600;margin:0 0 2px;}
+.cs-sub{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);margin-bottom:16px;}
+
+.block{margin-bottom:20px;}
+.block-head{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--ink-soft);display:flex;align-items:center;gap:8px;margin-bottom:9px;}
+.block-head .n{font-family:var(--serif);font-weight:600;font-size:14px;color:var(--terracotta);}
+.cat-pill{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:0.04em;padding:2px 7px;border-radius:10px;margin-left:auto;}
+.cat-climate{background:var(--cat-climate);color:var(--cat-climate-ink);}
+.cat-metric{background:var(--cat-metric);color:var(--cat-metric-ink);}
+.cat-tag{background:var(--cat-tag);color:var(--cat-tag-ink);}
+.cat-sim{background:var(--cat-sim);color:var(--cat-sim-ink);}
+
+.photo-box{width:100%;height:160px;border-radius:8px;}
+.kvline{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);margin-bottom:4px;}
+.chartwrap{border:1px solid var(--line);border-radius:8px;padding:10px 12px 6px;background:#fff;}
+.chart-caption{font-family:var(--mono);font-size:9.5px;color:var(--ink-faint);display:flex;justify-content:space-between;margin-top:2px;}
+.kvline b{color:var(--ink);}
+
+.koppen-strip{display:flex;gap:8px;margin:10px 0;}
+.koppen-box{flex:1;border:1px solid var(--line);border-radius:7px;padding:8px 6px;text-align:center;background:var(--paper-dim);}
+.koppen-box.current{border-color:var(--terracotta);background:var(--terracotta-dim);}
+.koppen-box .scn{font-family:var(--mono);font-size:8.5px;text-transform:uppercase;color:var(--ink-soft);}
+.koppen-box .code{font-family:var(--serif);font-size:18px;font-weight:600;margin-top:2px;}
+
+.metric-table{width:100%;border-collapse:collapse;}
+.metric-table td{padding:5.5px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px;}
+.metric-table td.k{color:var(--ink-soft);}
+.metric-table td.v{text-align:right;font-family:var(--mono);font-weight:600;}
+.tagmatrix{display:flex;gap:5px;flex-wrap:wrap;margin-top:11px;}
+.tagchip{font-family:var(--mono);font-size:10.5px;padding:4px 9px;border-radius:20px;border:1.4px solid var(--ink-soft);color:var(--ink-soft);}
+.tagchip.on{background:var(--moss);border-color:var(--moss);color:#fff;}
+.tagchip.off{opacity:0.4;}
+
+.sim-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+.diagram-tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;}
+.diagram-tab{font-family:var(--mono);font-size:10.5px;padding:5px 9px;border-radius:6px;border:1px solid var(--line);background:var(--paper-dim);color:var(--ink-soft);cursor:pointer;}
+.diagram-tab:hover{border-color:var(--terracotta);color:var(--terracotta-deep);}
+.diagram-tab.active{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:600;}
+.viewer3d-canvas-box{width:100%;height:210px;border-radius:8px;border:1px solid var(--line);overflow:hidden;background:linear-gradient(to bottom,#E7EEF1,#F4F1E6);position:relative;cursor:grab;touch-action:none;}
+.viewer3d-canvas-box:active{cursor:grabbing;}
+.viewer3d-canvas-box canvas{display:block;}
+.viewer3d-fallback{display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:11px;color:var(--ink-faint);text-align:center;padding:0 16px;}
+.viewer3d-hint{position:absolute;bottom:6px;right:8px;font-family:var(--mono);font-size:8.5px;color:var(--ink-faint);background:rgba(241,236,222,0.8);padding:1px 6px;border-radius:4px;}
+.heat-legend{margin-top:9px;}
+.heat-legend-bar{height:8px;border-radius:4px;background:linear-gradient(to right,#2E6F95,#3FA796,#E8C547,#D9792F,#B23A2F);}
+.heat-legend-labels{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--ink-faint);margin-top:3px;}
+.diagram-caption{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);margin-top:8px;line-height:1.5;}
+.sim-cell{border:1px solid var(--line);border-radius:7px;padding:9px 11px;}
+.sim-cell .k{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:var(--ink-faint);}
+.sim-cell .v{font-family:var(--serif);font-size:21px;font-weight:600;margin-top:2px;}
+.sim-cell .u{font-family:var(--mono);font-size:10px;color:var(--ink-soft);font-weight:400;}
+
+.rec-wrap{border:1px solid var(--line);border-radius:9px;overflow:hidden;}
+.rec-block{padding:11px 14px;border-bottom:1px solid var(--line-soft);}
+.rec-block:last-child{border-bottom:none;}
+.rec-block.active{background:var(--ochre-dim);}
+.rec-head{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ochre);font-weight:600;margin-bottom:5px;display:flex;justify-content:space-between;}
+.rec-text{font-size:12.5px;line-height:1.5;}
+
+.findings-grid{display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;}
+.findings-menu{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px;position:sticky;top:14px;}
+.fm-group-label{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:0.07em;color:var(--ink-faint);padding:10px 12px 4px;}
+.fm-item{display:block;width:100%;text-align:left;font-family:var(--sans);font-size:13px;padding:9px 12px;border:none;background:transparent;color:var(--ink-soft);cursor:pointer;border-radius:7px;border-left:3px solid transparent;}
+.fm-item:hover{background:var(--paper-dim);color:var(--ink);}
+.fm-item.active{background:var(--paper-dim);color:var(--terracotta-deep);font-weight:600;border-left-color:var(--terracotta);}
+.findings-content{background:#fff;border:1px solid var(--line);border-radius:10px;padding:28px 32px;min-height:540px;}
+.fc-eyebrow{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink-faint);margin-bottom:6px;}
+.fc-title{font-family:var(--serif);font-size:27px;font-weight:600;margin:0 0 16px;line-height:1.15;}
+.fc-body{font-size:14.5px;line-height:1.62;max-width:62ch;}
+.fc-body p{margin:0 0 14px;}
+.prescription{border-left:3px solid var(--moss);background:var(--moss-dim);padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13.5px;}
+.prescription .pl{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--moss);font-weight:600;margin-bottom:4px;}
+.caveat{border-left:3px solid var(--rust);background:var(--rust-dim);padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13.5px;}
+.caveat .pl{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--rust);font-weight:600;margin-bottom:4px;}
+
+.method-wrap{max-width:920px;}
+.method-lead{font-family:var(--serif);font-size:19px;line-height:1.5;color:var(--ink-soft);font-style:italic;margin-bottom:8px;max-width:64ch;}
+.method-body{font-size:14.5px;line-height:1.62;max-width:66ch;}
+.method-body p{margin:0 0 14px;}
+.method-body h3{font-family:var(--serif);font-size:20px;font-weight:600;margin:30px 0 10px;}
+.pipeline-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:22px;margin:24px 0;overflow-x:auto;}
+.corpus-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0 6px;}
+.cstat{background:#fff;border:1px solid var(--line);border-radius:9px;padding:12px 14px;}
+.cstat .v{font-family:var(--serif);font-size:26px;font-weight:600;}
+.cstat .k{font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--ink-faint);letter-spacing:0.04em;margin-top:2px;}
+.climate-stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.climate-stat-row .cstat{padding:9px 10px;}
+.climate-stat-row .cstat .v{font-size:19px;}
+.climate-stat-row .cstat .k{font-size:8.5px;line-height:1.3;}
+.limits-list{list-style:none;padding:0;margin:0;}
+.limits-list li{padding:11px 0 11px 26px;border-bottom:1px solid var(--line-soft);position:relative;font-size:13.5px;line-height:1.5;}
+.limits-list li:before{content:'△';position:absolute;left:0;top:11px;color:var(--rust);font-size:12px;}
+.limits-list li b{color:var(--ink);}
+
+footer{border-top:1px solid var(--line);padding:16px 28px 30px;font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);max-width:1500px;margin:0 auto;line-height:1.6;}
+
+@media (max-width:980px){.explorer-grid,.findings-grid{grid-template-columns:1fr;}#map{height:380px;}.map-col{position:static;}.panel{height:auto;max-height:none;overflow-y:visible;}.findings-menu{position:static;}.corpus-stats{grid-template-columns:repeat(2,1fr);}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+:focus-visible{outline:2px solid var(--terracotta-deep);outline-offset:2px;}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div>
+    <div class="brand-eyebrow">Vernacular Typology × Climate Correlation</div>
+    <div class="brand-title">Morph Shift <span class="module">m_II · cs_output_v5</span></div>
+  </div>
+  <div class="scenario-control">
+    <div class="scenario-label">Climate scenario · SSP5-8.5</div>
+    <div class="scenario-pills" id="scenarioPills"></div>
+  </div>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn admin-tab" data-tab="admin"><svg class="lock-icon" viewBox="0 0 24 24" width="11" height="11"><path d="M6 10V8a6 6 0 0112 0v2h1a1 1 0 011 1v10a1 1 0 01-1 1H5a1 1 0 01-1-1V11a1 1 0 011-1h1zm2 0h8V8a4 4 0 00-8 0v2z" fill="currentColor"/></svg> <span class="numeral">0</span> Add Case Studies</button>
+  <button class="tab-btn active" data-tab="cases"><span class="numeral">I</span> Vernacular Case Studies</button>
+  <button class="tab-btn" data-tab="findings"><span class="numeral">II</span> Findings &amp; Recommendations</button>
+  <button class="tab-btn minor" data-tab="method"><span class="numeral">III</span> Methodology &amp; Limitations</button>
+</div>
+
+<main>
+  <section class="view" id="view-admin">
+    <div id="adminContent"></div>
+  </section>
+
+  <section class="view active" id="view-cases">
+    <div class="filter-bar">
+      <div class="filter-group"><span class="fl">Region</span><select id="fRegion"><option value="">All regions</option></select></div>
+      <div class="filter-group"><span class="fl">Köppen group</span>
+        <select id="fKoppen"><option value="">All</option><option value="A">A — Tropical</option><option value="B">B — Arid</option><option value="C">C — Temperate</option><option value="D">D — Continental</option></select></div>
+      <div class="filter-group"><span class="fl">Tags (must include)</span><div class="tag-filter" id="tagFilter"></div></div>
+      <span class="filter-count" id="filterCount"></span>
+      <button class="filter-reset" id="filterReset">Reset</button>
+    </div>
+    <div class="explorer-grid">
+      <div class="map-col">
+        <div class="map-card">
+          <div id="map"></div>
+          <div class="map-legend" id="mapLegend"></div>
+        </div>
+        <div class="unmapped" id="unmapped"></div>
+      </div>
+      <div class="panel" id="csPanel"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-findings">
+    <div class="findings-grid">
+      <nav class="findings-menu" id="findingsMenu"></nav>
+      <article class="findings-content" id="findingsContent"></article>
+    </div>
+  </section>
+
+  <section class="view" id="view-method">
+    <div class="method-wrap">
+      <div class="method-lead">Morph Shift is an empirical–quantitative correlation study testing which passive strategies in historical vernacular buildings remain valid under projected future climate, and which require adaptation — paired with a simulation tool that bridges description and prescription.</div>
+      <div class="corpus-stats" id="corpusStats"></div>
+      <div class="pipeline-card" id="pipelineCard"></div>
+      <div class="method-body">
+        <h3>The pipeline</h3>
+        <p>Each case study is anchored to the nearest representative EPW / TMYx weather station. Present-day files (TMYx 2011–2025) are morphed to 2050 and 2080 horizons using CMIP6 deltas under SSP5-8.5, following the Belcher et al. (2005) morphing method with bilinear interpolation. Precipitation is intentionally not morphed.</p>
+        <p>Architectural metrics are extracted from DXF drawings: wall thermal mass as floor-plan polygons extruded to eave height (C = Σ V × VHC), window-to-wall ratio, wall thickness via the perimeter–area formula, compactness ψ (clamped at 1.0), and eave / rake depths read from measurement lines only — no geometric fallback. Each building reduces to a binary tag matrix matched against its EPW climate signature.</p>
+        <p>Correlations are inferred with logistic regression, treating country and altitude zone as confound controls because cultural and climate variables co-vary geographically. A two-zone unconditioned Grasshopper / Honeybee model (inhabited zone + attic buffer) is then simulated in EnergyPlus against present and morphed EPWs — the mechanistic step that lets correlations become defensible prescriptions.</p>
+        <h3>Why simulation is mandatory</h3>
+        <p>Observing that vernacular buildings correlate with their climate is descriptive. Recommending those features for new construction is prescriptive. Crossing that line on correlation alone is the naturalistic fallacy. Simulation licenses the jump — and exposes the one variable a climate analogue can never fix: solar geometry is set by latitude, not climate, so a future-Cfa Bavarian site still receives Bavarian sun angles, not the sun of a present-day Cfa site further south.</p>
+        <h3>Limitations</h3>
+        <ul class="limits-list">
+          <li><b>Naturalistic fallacy</b> — correlation cannot by itself justify prescription; simulation is required and remains partial.</li>
+          <li><b>Latitude-fixed solar geometry</b> — climate-analogue matching cannot transfer solar angles; shading and gain strategies do not migrate with the climate envelope.</li>
+          <li><b>Museum relocation bias</b> — open-air-museum buildings are assigned EPW from museum coordinates, not the original build site; orientation tags are unreliable for these unless verified against historic cadastral maps.</li>
+          <li><b>Incomplete corpus</b> — geometry metrics exist for a subset of buildings; coordinates and EPW assignment are missing for others; Köppen classification and simulation outputs are not yet written back for most rows. <span class="nodata">live counts shown above</span></li>
+          <li><b>Precipitation</b> — not morphed and unreliable for classification; future Köppen uses present-day precipitation to avoid rounding-driven misclassification.</li>
+          <li><b>Recent-warming bias in TMYx</b> — 2011–2025 normals already embed warming, so some stations no longer classify as Dfb even where 1961–1990 normals would. Significant, not an error.</li>
+        </ul>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin-top:24px;"><span class="nodata">PLATZHALTER</span> — full methodology text, citation list (Belcher 2005, Rodrigues 2023, Kottek 2006, Rapoport 1969, Olgyay 1963) and AI-disclosure note finalised here.</p>
+      </div>
+    </div>
+  </section>
+</main>
+<footer id="footer"></footer>
+
+<script>
+let CASES = [{"id": "CS_1", "name": null, "country": "CZE", "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_2", "name": "Nannerth-ganol longhouse", "country": "CZE", "year": null, "coordRaw": "52°19'48.8\"N 3°33'12.4\"W", "lat": 52.33022, "lon": -3.55344, "elev": null, "epw": "Saint.Harmon", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_3", "name": "Moirlanich", "country": "SCO", "year": null, "coordRaw": "56°28'38.5\"N 4°20'09.9\"W", "lat": 56.47736, "lon": -4.33608, "elev": null, "epw": "Killin", "koppen": [null, null, null], "orientation": 85.8, "context": null, "area": 115.27, "height": 5.18, "floors": 0.0, "structure": "stone/masonry", "wallThk": 0.778, "uWall": null, "volume": 424.03, "va": 1.02, "psi": 0.815, "thermalMass": 1180.0, "wwr": 0.0, "windowOrient": "E:45% W:29% N:14% S:12%", "hearth": 0.878, "roofForm": null, "roofMat": "shingle", "roofPitch": 44.0, "uRoof": 1.801, "atticH": 3.2, "eaveH": 1.98, "eaveDepth": 0.101, "eaveByOrient": "N:0.146m / S:0.056m", "rakeDepth": null, "facadeMat": "stone/masonry", "courtyard": "no", "special": null, "flags": "WWR=0: no windows in elevations; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": true, "eaves": false, "steep": true, "lowwwr": true}, "wallType": "masonry", "hasGeom": true, "hasCoord": true}, {"id": "CS_4", "name": "Újezd fid 114", "country": "SCO", "year": null, "coordRaw": "49°26'32.1\"N 12°53'29.5\"E", "lat": 49.44225, "lon": 12.89153, "elev": null, "epw": "Primda", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_5", "name": "Zbčno 189", "country": "CZE", "year": null, "coordRaw": "50°02'30.1\"N 13°55'14.9\"E", "lat": 50.04169, "lon": 13.92081, "elev": null, "epw": "Praha-Ruzyne.AP", "koppen": [null, null, null], "orientation": 32.7, "context": null, "area": 210.28, "height": 10.99, "floors": 2.0, "structure": "log_construction", "wallThk": 0.345, "uWall": null, "volume": 1635.37, "va": 1.809, "psi": 0.921, "thermalMass": 858.5, "wwr": 3.0, "windowOrient": "N:31% S:27% W:21% E:20%", "hearth": 0.513, "roofForm": null, "roofMat": "thatched", "roofPitch": 47.4, "uRoof": 0.261, "atticH": 7.13, "eaveH": 3.86, "eaveDepth": 1.127, "eaveByOrient": "E:0.748m / W:1.507m", "rakeDepth": 0.382, "facadeMat": "log_construction", "courtyard": "no", "special": null, "flags": "diagonal: N/E/S/W counts unreliable; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": true, "steep": true, "lowwwr": true}, "wallType": "timber", "hasGeom": true, "hasCoord": true}, {"id": "CS_6", "name": "Myštice 174", "country": "CZE", "year": null, "coordRaw": "49°26'45.7\"N 13°56'40.9\"E", "lat": 49.44603, "lon": 13.94469, "elev": null, "epw": "Kocelovice", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_7", "name": "České Budějovice 51", "country": "CZE", "year": null, "coordRaw": "49°04'01.9\"N 14°15'47.3\"E", "lat": 49.06719, "lon": 14.26314, "elev": null, "epw": "Temelin", "koppen": [null, null, null], "orientation": 270.0, "context": null, "area": 34.78, "height": 7.47, "floors": 3.0, "structure": "wood", "wallThk": 0.216, "uWall": null, "volume": 146.79, "va": 0.908, "psi": 1.0, "thermalMass": 805.2, "wwr": 0.6, "windowOrient": "N:73% E:15% W:12%", "hearth": null, "roofForm": null, "roofMat": "thatched", "roofPitch": 55.3, "uRoof": 0.319, "atticH": 4.88, "eaveH": 2.59, "eaveDepth": 0.325, "eaveByOrient": "N:0.370m / S:0.280m", "rakeDepth": 0.619, "facadeMat": "clay", "courtyard": "no", "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": false, "steep": true, "lowwwr": true}, "wallType": "timber", "hasGeom": true, "hasCoord": true}, {"id": "CS_8", "name": "Smilkov 146", "country": "CZE", "year": "1811", "coordRaw": "49°36'08.2\"N 14°37'00.7\"E", "lat": 49.60228, "lon": 14.61686, "elev": null, "epw": "Tabor", "koppen": [null, null, null], "orientation": 150.3, "context": null, "area": 96.95, "height": 6.15, "floors": 2.0, "structure": "wood", "wallThk": 0.334, "uWall": null, "volume": 456.08, "va": 1.097, "psi": 0.855, "thermalMass": 959.8, "wwr": 4.1, "windowOrient": "S:57% N:30% W:13%", "hearth": 0.404, "roofForm": null, "roofMat": "shingle", "roofPitch": 45.1, "uRoof": 1.073, "atticH": 3.53, "eaveH": 2.62, "eaveDepth": 1.07, "eaveByOrient": "E:1.327m / W:0.813m", "rakeDepth": 1.21, "facadeMat": "log_construction", "courtyard": "no", "special": null, "flags": "diagonal: N/E/S/W counts unreliable; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": true, "steep": true, "lowwwr": true}, "wallType": "timber", "hasGeom": true, "hasCoord": true}, {"id": "CS_9", "name": "Mladá Boleslav 24", "country": "CZE", "year": null, "coordRaw": "50°26'45.8\"N 14°50'21.2\"E", "lat": 50.44606, "lon": 14.83922, "elev": null, "epw": "Liberec", "koppen": [null, null, null], "orientation": 161.3, "context": null, "area": 103.22, "height": 9.24, "floors": 3.0, "structure": null, "wallThk": 0.473, "uWall": null, "volume": 711.61, "va": 1.333, "psi": 0.896, "thermalMass": 1799.2, "wwr": 3.8, "windowOrient": "N:35% E:25% S:23% W:17%", "hearth": 0.708, "roofForm": null, "roofMat": null, "roofPitch": 44.4, "uRoof": null, "atticH": 4.69, "eaveH": 4.54, "eaveDepth": 1.565, "eaveByOrient": "E:1.978m / W:1.151m", "rakeDepth": 0.488, "facadeMat": "stone/masonry", "courtyard": "no", "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": true, "steep": true, "lowwwr": true}, "wallType": null, "hasGeom": true, "hasCoord": true}, {"id": "CS_10", "name": "Pardubice 22", "country": "CZE", "year": null, "coordRaw": "50°07'19.5\"N 15°49'12.9\"E", "lat": 50.12208, "lon": 15.82025, "elev": null, "epw": "Pardubice", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_11", "name": "Havlíčkův Brod 190", "country": "CZE", "year": null, "coordRaw": "49°44'04.0\"N 15°47'14.5\"E", "lat": 49.73444, "lon": 15.78736, "elev": null, "epw": "Pribyslav", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_12", "name": "Svitavy 163", "country": "CZE", "year": null, "coordRaw": "49°40'40.0\"N 16°11'45.7\"E", "lat": 49.67778, "lon": 16.19603, "elev": null, "epw": "Svratouch", "koppen": [null, null, null], "orientation": 310.0, "context": null, "area": 155.55, "height": 12.19, "floors": 4.0, "structure": "log_construction", "wallThk": 0.26, "uWall": null, "volume": 1363.4, "va": 1.753, "psi": 0.948, "thermalMass": 735.9, "wwr": 1.0, "windowOrient": null, "hearth": 0.821, "roofForm": null, "roofMat": "shingle", "roofPitch": 48.3, "uRoof": null, "atticH": 7.13, "eaveH": 5.06, "eaveDepth": 1.435, "eaveByOrient": "N:1.270m / S:1.601m", "rakeDepth": null, "facadeMat": "log_construction", "courtyard": "no", "special": null, "flags": "no opening polygons in floor plan; diagonal: N/E/S/W counts unreliable; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": true, "steep": true, "lowwwr": true}, "wallType": "timber", "hasGeom": true, "hasCoord": true}, {"id": "CS_13", "name": "Olomouc 103", "country": "CZE", "year": null, "coordRaw": "49°39'09.1\"N 17°07'23.8\"E", "lat": 49.65253, "lon": 17.12328, "elev": null, "epw": "Olomouc", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_14", "name": "Uherské Hradiště 196", "country": "CZE", "year": null, "coordRaw": "49°07'42.5\"N 17°37'47.1\"E", "lat": 49.12847, "lon": 17.62975, "elev": null, "epw": "Kunovice", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_15", "name": "Vetín 46", "country": "CZE", "year": null, "coordRaw": "49°12'25.4\"N 18°07'26.4\"E", "lat": 49.20706, "lon": 18.124, "elev": null, "epw": "Zilina.AP", "koppen": [null, null, null], "orientation": 246.4, "context": null, "area": 62.37, "height": 6.42, "floors": 2.0, "structure": "log_construction", "wallThk": 0.204, "uWall": null, "volume": 303.83, "va": 0.992, "psi": 0.885, "thermalMass": 428.6, "wwr": 2.1, "windowOrient": "E:48% W:34% N:18%", "hearth": 0.331, "roofForm": null, "roofMat": "shingle", "roofPitch": 53.7, "uRoof": 1.478, "atticH": 3.64, "eaveH": 2.78, "eaveDepth": 0.901, "eaveByOrient": "N:0.873m / S:0.929m", "rakeDepth": null, "facadeMat": "log_construction", "courtyard": "no", "special": null, "flags": "diagonal: N/E/S/W counts unreliable; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": true, "steep": true, "lowwwr": true}, "wallType": "timber", "hasGeom": true, "hasCoord": true}, {"id": "CS_16", "name": "Frýdek-Místek 111", "country": "CZE", "year": "1770", "coordRaw": "49°33'44.3\"N 18°21'12.6\"E", "lat": 49.56231, "lon": 18.3535, "elev": null, "epw": "Lysa.Hora", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_17", "name": "Hama House", "country": "JPN", "year": null, "coordRaw": "36°24'38.0\"N 136°55'51.6\"E", "lat": 36.41056, "lon": 136.931, "elev": null, "epw": "Kanazawa", "koppen": [null, null, null], "orientation": 294.6, "context": null, "area": 143.68, "height": 10.85, "floors": 2.0, "structure": "wood", "wallThk": 0.203, "uWall": null, "volume": 1028.27, "va": 1.537, "psi": 0.914, "thermalMass": 242.1, "wwr": 16.2, "windowOrient": "S:33% W:31% N:20% E:16%", "hearth": 0.686, "roofForm": null, "roofMat": "thatched", "roofPitch": 54.2, "uRoof": 0.132, "atticH": 8.13, "eaveH": 2.72, "eaveDepth": 1.05, "eaveByOrient": "N:1.027m / S:1.072m", "rakeDepth": null, "facadeMat": "wood", "courtyard": "no", "special": null, "flags": "diagonal: N/E/S/W counts unreliable; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": true, "steep": true, "lowwwr": true}, "wallType": "timber", "hasGeom": true, "hasCoord": true}, {"id": "CS_18", "name": "Ippei Kitamura House", "country": "JPN", "year": "1687", "coordRaw": "35°36'57.7\"N 139°33'50.9\"E", "lat": 35.61603, "lon": 139.56414, "elev": null, "epw": "Chofu.AP", "koppen": [null, null, null], "orientation": 41.9, "context": null, "area": 121.73, "height": 7.28, "floors": 1.0, "structure": "wood", "wallThk": 0.119, "uWall": null, "volume": 598.13, "va": 1.261, "psi": 0.898, "thermalMass": 103.5, "wwr": 0.0, "windowOrient": "W:44% S:24% N:21% E:11%", "hearth": 0.963, "roofForm": null, "roofMat": "thatched", "roofPitch": 41.7, "uRoof": 0.157, "atticH": 5.03, "eaveH": 2.25, "eaveDepth": 1.957, "eaveByOrient": "E:1.936m / W:1.977m", "rakeDepth": null, "facadeMat": "wood", "courtyard": "no", "special": null, "flags": "WWR=0: no windows in elevations; diagonal: N/E/S/W counts unreliable; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": true, "steep": true, "lowwwr": true}, "wallType": "timber", "hasGeom": true, "hasCoord": true}, {"id": "CS_19", "name": "Takeyoshi Migita house", "country": "JPN", "year": "1860", "coordRaw": "32.43N 131.14E", "lat": 32.43, "lon": 131.14, "elev": null, "epw": "Hitoyoshi", "koppen": [null, null, null], "orientation": 155.9, "context": null, "area": 137.86, "height": 9.57, "floors": 0.0, "structure": "wood", "wallThk": 0.166, "uWall": null, "volume": 926.18, "va": 1.414, "psi": 0.87, "thermalMass": 274.4, "wwr": 0.0, "windowOrient": "N:100%", "hearth": 0.867, "roofForm": null, "roofMat": "thatched", "roofPitch": 48.7, "uRoof": 0.123, "atticH": 6.41, "eaveH": 3.16, "eaveDepth": 2.005, "eaveByOrient": "E:2.577m / W:1.432m", "rakeDepth": null, "facadeMat": "wood", "courtyard": "no", "special": null, "flags": "WWR=0: no windows in elevations; diagonal: N/E/S/W counts unreliable; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": true, "steep": true, "lowwwr": true}, "wallType": "timber", "hasGeom": true, "hasCoord": true}, {"id": "CS_20", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_21", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_22", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_23", "name": "Kotaro Mononobe House", "country": null, "year": null, "coordRaw": "35.01N 135.77E", "lat": 35.01, "lon": 135.77, "elev": null, "epw": "Kyoto", "koppen": [null, null, null], "orientation": 0.0, "context": null, "area": 63.9, "height": 5.97, "floors": 2.0, "structure": "wood", "wallThk": 0.099, "uWall": null, "volume": 268.03, "va": 0.994, "psi": 0.925, "thermalMass": 119.2, "wwr": 0.0, "windowOrient": "E:34% N:28% W:26% S:12%", "hearth": 0.802, "roofForm": null, "roofMat": "thatched", "roofPitch": 45.2, "uRoof": 0.213, "atticH": 4.37, "eaveH": 1.6, "eaveDepth": 1.465, "eaveByOrient": "E:2.213m / W:0.717m", "rakeDepth": null, "facadeMat": "wood", "courtyard": "no", "special": null, "flags": "WWR=0: no windows in elevations; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": true, "steep": true, "lowwwr": true}, "wallType": "timber", "hasGeom": true, "hasCoord": true}, {"id": "CS_24", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_25", "name": "Yanohara House", "country": "JPN", "year": null, "coordRaw": "36°16'21.8\"N 136°53'57.5\"E", "lat": 36.27272, "lon": 136.89931, "elev": null, "epw": "Takayama", "koppen": [null, null, null], "orientation": 180.0, "context": null, "area": 352.0, "height": 15.3, "floors": 4.0, "structure": "wood", "wallThk": 0.212, "uWall": null, "volume": 3868.31, "va": 2.439, "psi": 0.932, "thermalMass": 279.0, "wwr": 14.2, "windowOrient": "S:44% W:28% E:18% N:10%", "hearth": 0.83, "roofForm": null, "roofMat": "thatched", "roofPitch": 49.3, "uRoof": null, "atticH": 11.35, "eaveH": 3.94, "eaveDepth": 2.373, "eaveByOrient": "E:2.286m / W:2.461m", "rakeDepth": null, "facadeMat": "wood", "courtyard": "no", "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": true, "steep": true, "lowwwr": true}, "wallType": "timber", "hasGeom": true, "hasCoord": true}, {"id": "CS_26", "name": "Fujiwara House", "country": "JPN", "year": "1780", "coordRaw": "39°36'16.5\"N 141°04'56.8\"E", "lat": 39.60458, "lon": 141.08244, "elev": null, "epw": "Morioka", "koppen": [null, null, null], "orientation": 90.0, "context": null, "area": 135.66, "height": 5.59, "floors": 1.0, "structure": "timber_frame", "wallThk": 0.134, "uWall": null, "volume": 607.72, "va": 1.2, "psi": 0.85, "thermalMass": 170.9, "wwr": 6.8, "windowOrient": "E:42% S:29% N:29%", "hearth": 0.66, "roofForm": null, "roofMat": "thatched", "roofPitch": 46.1, "uRoof": 0.183, "atticH": 3.96, "eaveH": 1.63, "eaveDepth": 1.128, "eaveByOrient": "N:1.402m / S:0.855m", "rakeDepth": null, "facadeMat": "timber_frame", "courtyard": "no", "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": true, "eaves": true, "steep": true, "lowwwr": true}, "wallType": "hybrid", "hasGeom": true, "hasCoord": true}, {"id": "CS_27", "name": "Sadatsugu Onodera House", "country": "JPN", "year": "1905", "coordRaw": "36°06'34.0\"N 137°49'44.4\"E", "lat": 36.10944, "lon": 137.829, "elev": null, "epw": "Shinsho.Matsumoto.AP", "koppen": [null, null, null], "orientation": 0.0, "context": null, "area": 205.35, "height": 9.8, "floors": 3.0, "structure": "wood", "wallThk": 0.165, "uWall": null, "volume": 1475.52, "va": 1.74, "psi": 0.917, "thermalMass": 311.9, "wwr": 6.2, "windowOrient": "N:44% S:31% W:25%", "hearth": 0.791, "roofForm": null, "roofMat": "thatched", "roofPitch": 43.6, "uRoof": null, "atticH": 6.55, "eaveH": 3.26, "eaveDepth": 1.308, "eaveByOrient": "E:1.121m / W:1.494m", "rakeDepth": null, "facadeMat": "wood", "courtyard": "no", "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": true, "steep": true, "lowwwr": true}, "wallType": "timber", "hasGeom": true, "hasCoord": true}, {"id": "CS_28", "name": "Sadaharu Shibuya House", "country": "JPN", "year": "1809", "coordRaw": "38.60N 139.90E", "lat": 38.6, "lon": 139.9, "elev": null, "epw": "Shonai.AP", "koppen": [null, null, null], "orientation": 270.0, "context": null, "area": 156.08, "height": 9.44, "floors": 2.0, "structure": "wood", "wallThk": 0.166, "uWall": null, "volume": 955.35, "va": 1.561, "psi": 0.951, "thermalMass": 325.5, "wwr": 3.4, "windowOrient": "N:46% S:33% W:22%", "hearth": null, "roofForm": null, "roofMat": "thatched", "roofPitch": 45.8, "uRoof": 0.128, "atticH": 6.09, "eaveH": 3.35, "eaveDepth": 1.168, "eaveByOrient": "N:1.284m / S:1.053m", "rakeDepth": 1.08, "facadeMat": "wood", "courtyard": "no", "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": true, "steep": true, "lowwwr": true}, "wallType": "timber", "hasGeom": true, "hasCoord": true}, {"id": "CS_29", "name": "Grebenstein, Obere Straße 257", "country": "DE", "year": null, "coordRaw": "51°26'39.8\"N 9°24'53.2\"E", "lat": 51.44439, "lon": 9.41478, "elev": 181.0, "epw": "Kassel.Calden.AP", "koppen": [null, null, null], "orientation": 195.3, "context": null, "area": 164.31, "height": 16.93, "floors": 3.0, "structure": "wood", "wallThk": 0.25, "uWall": null, "volume": 2114.43, "va": 2.052, "psi": 0.959, "thermalMass": 1615.3, "wwr": 7.6, "windowOrient": "N:77% S:23%", "hearth": 0.112, "roofForm": null, "roofMat": "shingle", "roofPitch": 53.9, "uRoof": 0.837, "atticH": 9.0, "eaveH": 7.92, "eaveDepth": 0.859, "eaveByOrient": "E:1.068m / W:0.650m", "rakeDepth": 0.884, "facadeMat": "timber_frame", "courtyard": "no", "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": true, "steep": true, "lowwwr": true}, "wallType": "timber", "hasGeom": true, "hasCoord": true}, {"id": "CS_30", "name": "House of Nalbant Family, Saccilar, Bolu", "country": "TR", "year": null, "coordRaw": "40°37'52.85\"N 31°30'50.60\"E", "lat": 40.63135, "lon": 31.51406, "elev": 1008.0, "epw": "Sivrihisar", "koppen": [null, null, null], "orientation": 180.0, "context": null, "area": 101.33, "height": 8.32, "floors": 2.0, "structure": "timber_frame", "wallThk": 0.199, "uWall": null, "volume": 715.59, "va": 1.442, "psi": 0.967, "thermalMass": 1054.6, "wwr": 12.7, "windowOrient": "N:36% S:24% W:21% E:19%", "hearth": 0.803, "roofForm": null, "roofMat": "shingle", "roofPitch": 25.6, "uRoof": 1.243, "atticH": 2.92, "eaveH": 5.4, "eaveDepth": 0.597, "eaveByOrient": "E:0.615m / W:0.578m", "rakeDepth": null, "facadeMat": "timber_frame", "courtyard": "no", "special": null, "flags": "WARN: 131.9km from station; WARN: 131.9km from station", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": true, "eaves": false, "steep": false, "lowwwr": true}, "wallType": "hybrid", "hasGeom": true, "hasCoord": true}, {"id": "CS_31", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_32", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_33", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_34", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_35", "name": "Parcel 107-2, Rize, Dereköy", "country": "TR", "year": null, "coordRaw": "40°43'38.75\"N 40°35'45.66\"E", "lat": 40.72743, "lon": 40.59602, "elev": 988.0, "epw": "Khulo", "koppen": ["Dfb", "Cfb", "Cfa"], "orientation": 53.2, "context": null, "area": 102.91, "height": 7.52, "floors": 3.0, "structure": null, "wallThk": 0.388, "uWall": null, "volume": 689.17, "va": 1.475, "psi": 1.0, "thermalMass": 1891.1, "wwr": 4.4, "windowOrient": "E:30% N:28% S:27% W:15%", "hearth": 0.385, "roofForm": null, "roofMat": null, "roofPitch": 17.8, "uRoof": null, "atticH": 1.65, "eaveH": 5.87, "eaveDepth": 0.402, "eaveByOrient": "N:0.345m / S:0.459m", "rakeDepth": 0.714, "facadeMat": "stone/masonry", "courtyard": "no", "special": null, "flags": "diagonal: N/E/S/W counts unreliable; WARN: 176.8km from station; WARN: 176.8km from station", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": false, "steep": false, "lowwwr": true}, "wallType": null, "hasGeom": true, "hasCoord": true}, {"id": "CS_36", "name": "Parcel 115-5, Dereköy, Rize", "country": "TR", "year": null, "coordRaw": "40°43'33.83\"N 40°35'35.35\"E", "lat": 40.72606, "lon": 40.59315, "elev": 1116.0, "epw": "Gumushane", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "WARN: 99.3km from station | WARN: elev diff 103m; WARN: 99.3km from station | WARN: elev diff 103m", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_37", "name": "Parcel 110-147, Dereköy, Rize", "country": "TR", "year": null, "coordRaw": "40°43'31.75\"N 40°35'30.93\"E", "lat": 40.72549, "lon": 40.59193, "elev": 1169.0, "epw": "Gumushane", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "WARN: 99.2km from station; WARN: 99.2km from station", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_38", "name": "Sevketbeyoglu Konagi, Caglayan, Rize", "country": "TR", "year": null, "coordRaw": "41°15'19.40\"N 41°13'20.77\"E", "lat": 41.25539, "lon": 41.22244, "elev": 167.0, "epw": "Hopa", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "WARN: elev diff 134m; WARN: elev diff 134m", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_39", "name": "Wenning Hipping, Clapham", "country": "UK", "year": "16th century", "coordRaw": "54°06'12.4\"N 2°24'38.7\"W", "lat": 54.10344, "lon": -2.41075, "elev": 127.0, "epw": "Skipton", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_40", "name": "Yew Tree Farm, Samlesbury, Lancashire", "country": "UK", "year": "17th century", "coordRaw": "53.7655, -2.5747", "lat": 53.7655, "lon": -2.5747, "elev": 79.0, "epw": "Warton", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_41", "name": "Plas yn Trofarth, Llangernyw", "country": "UK/Wales", "year": "early 16th century", "coordRaw": "53.2064, -3.7110", "lat": 53.2064, "lon": -3.711, "elev": 193.0, "epw": "Rhyl.AP", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "WARN: elev diff 117m; WARN: elev diff 117m", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_42", "name": "143-6, Bucak-Kestel, Burdur", "country": "TR", "year": null, "coordRaw": "37°25'10.24\"N 30°24'26.68\"E", "lat": 37.41951, "lon": 30.40741, "elev": 807.0, "epw": "Isparta-Suleyman.Demirel.Univ.AP", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_43", "name": "Casa, Palacios de Compludo, León", "country": "ESP", "year": null, "coordRaw": "42°27'21.47\"N 6°28'03.39\"W", "lat": 42.45596, "lon": -6.46761, "elev": 1087.0, "epw": "Avila", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "WARN: 249.1km from station; WARN: 249.1km from station", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_44", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_45", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_46", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_47", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_48", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_49", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_50", "name": "Der Pfändlerhof", "country": "DE", "year": "1610", "coordRaw": "47°58'39.77\"N 7°56'47.50\"E", "lat": 47.97771, "lon": 7.94653, "elev": 365.0, "epw": "Freiburg.AP", "koppen": [null, null, null], "orientation": 82.0, "context": null, "area": 364.87, "height": 13.87, "floors": 3.0, "structure": "wood", "wallThk": 0.266, "uWall": null, "volume": 3110.61, "va": 2.176, "psi": 0.895, "thermalMass": 303.8, "wwr": 5.4, "windowOrient": "E:35% N:29% S:21% W:15%", "hearth": 0.94, "roofForm": null, "roofMat": "thatched", "roofPitch": 45.0, "uRoof": 0.13, "atticH": 10.89, "eaveH": 2.98, "eaveDepth": 3.302, "eaveByOrient": "N:3.151m / S:3.453m", "rakeDepth": 3.03, "facadeMat": "log_construction", "courtyard": "no", "special": null, "flags": "eave 3.302m — check lines; WARN: elev diff 127m; WARN: elev diff 127m", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": true, "steep": true, "lowwwr": true}, "wallType": "timber", "hasGeom": true, "hasCoord": true}, {"id": "CS_51", "name": "Altenvogtshof", "country": "DE", "year": "1565", "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_52", "name": "Roter Haubarg", "country": "DE", "year": "1665", "coordRaw": "54°25'30.35\"N 8°58'00.78\"E", "lat": 54.4251, "lon": 8.96688, "elev": null, "epw": "Husum.Schwesing.AP", "koppen": [null, null, null], "orientation": 0.0, "context": null, "area": 715.82, "height": 17.35, "floors": 3.0, "structure": "stone/masonry", "wallThk": 0.351, "uWall": null, "volume": 7827.94, "va": 3.061, "psi": 0.925, "thermalMass": 775.7, "wwr": 8.2, "windowOrient": "S:34% E:28% W:20% N:18%", "hearth": 0.924, "roofForm": null, "roofMat": "thatched", "roofPitch": 45.0, "uRoof": 0.171, "atticH": 12.83, "eaveH": 4.52, "eaveDepth": 0.4, "eaveByOrient": "E:0.350m / W:0.450m", "rakeDepth": 0.315, "facadeMat": "stone/masonry", "courtyard": "no", "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": true, "eaves": false, "steep": true, "lowwwr": true}, "wallType": "masonry", "hasGeom": true, "hasCoord": true}, {"id": "CS_53", "name": "Das Steiner Pfarrhaus", "country": "SZ", "year": "1653", "coordRaw": "47°02'59.54\"N 8°36'44.15\"E", "lat": 47.04987, "lon": 8.61226, "elev": null, "epw": "Oberaegeri", "koppen": [null, null, null], "orientation": 0.0, "context": null, "area": 96.17, "height": 14.12, "floors": 4.0, "structure": null, "wallThk": 0.126, "uWall": null, "volume": 1029.77, "va": 1.592, "psi": 0.946, "thermalMass": 482.4, "wwr": 8.9, "windowOrient": "S:39% N:23% W:20% E:18%", "hearth": 0.935, "roofForm": null, "roofMat": null, "roofPitch": 51.8, "uRoof": null, "atticH": 8.69, "eaveH": 5.43, "eaveDepth": 2.665, "eaveByOrient": "E:2.665m / W:2.665m", "rakeDepth": null, "facadeMat": "wood", "courtyard": "no", "special": null, "flags": "eave 2.665m — check lines; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": true, "steep": true, "lowwwr": true}, "wallType": null, "hasGeom": true, "hasCoord": true}, {"id": "CS_54", "name": "Haus Rudolph", "country": "DE", "year": "1530", "coordRaw": "54.285N 9.307E", "lat": 54.285, "lon": 9.307, "elev": null, "epw": "Hohn.AB", "koppen": [null, null, null], "orientation": 0.0, "context": null, "area": 228.51, "height": 7.77, "floors": 2.0, "structure": "timber_frame", "wallThk": 0.205, "uWall": null, "volume": 1132.27, "va": 1.483, "psi": 0.854, "thermalMass": 142.8, "wwr": 5.7, "windowOrient": "E:70% S:22% N:7%", "hearth": 0.882, "roofForm": null, "roofMat": "thatched", "roofPitch": 46.5, "uRoof": null, "atticH": 5.9, "eaveH": 1.86, "eaveDepth": 0.415, "eaveByOrient": "N:0.407m / S:0.424m", "rakeDepth": null, "facadeMat": "timber_frame", "courtyard": "no", "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": true, "eaves": false, "steep": true, "lowwwr": true}, "wallType": "hybrid", "hasGeom": true, "hasCoord": true}, {"id": "CS_55", "name": "Fuat Ersöz Evi (Artvin Kültür Evi)", "country": "TR", "year": "1800", "coordRaw": "41°10'45.93\"N 41°49'37.59\"E", "lat": 41.17942, "lon": 41.82711, "elev": null, "epw": "Artvin", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_56", "name": "The Trullo in Alberobello", "country": "IT", "year": "mid-14th century", "coordRaw": "40°46'58.43\"N 17°14'12.11\"E", "lat": 40.7829, "lon": 17.2367, "elev": null, "epw": "Martina.Franca", "koppen": [null, null, null], "orientation": null, "context": null, "area": 49.12, "height": 5.92, "floors": 1.0, "structure": "stone/masonry", "wallThk": 0.575, "uWall": null, "volume": 221.03, "va": 0.963, "psi": 0.956, "thermalMass": 2013.5, "wwr": 0.5, "windowOrient": null, "hearth": 0.497, "roofForm": null, "roofMat": "ceramic_tile", "roofPitch": 49.0, "uRoof": 1.387, "atticH": 3.4, "eaveH": 2.52, "eaveDepth": 0.049, "eaveByOrient": null, "rakeDepth": null, "facadeMat": "stone/masonry", "courtyard": "no", "special": null, "flags": "no north arrow; no opening polygons in floor plan; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": true, "eaves": false, "steep": true, "lowwwr": true}, "wallType": "masonry", "hasGeom": true, "hasCoord": true}, {"id": "CS_57", "name": "Adobe Dwelling, Leiria", "country": "PT", "year": "1935", "coordRaw": "39.74N 8.80W", "lat": 39.74, "lon": -8.8, "elev": 50.0, "epw": "Monte.Real.AB", "koppen": [null, null, null], "orientation": 270.0, "context": null, "area": 81.0, "height": 7.41, "floors": 0.0, "structure": null, "wallThk": 0.468, "uWall": null, "volume": 466.58, "va": 1.292, "psi": 0.999, "thermalMass": 1491.8, "wwr": 5.1, "windowOrient": "N:38% S:30% W:20% E:13%", "hearth": 0.285, "roofForm": null, "roofMat": null, "roofPitch": 37.1, "uRoof": null, "atticH": 3.29, "eaveH": 4.11, "eaveDepth": 0.366, "eaveByOrient": "N:0.376m / S:0.356m", "rakeDepth": null, "facadeMat": "clay", "courtyard": "no", "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": false, "steep": true, "lowwwr": true}, "wallType": null, "hasGeom": true, "hasCoord": true}, {"id": "CS_58", "name": "Rammed Earth Dwelling, Pombal", "country": "PT", "year": "1942", "coordRaw": "39.92N 8.63W", "lat": 39.92, "lon": -8.63, "elev": null, "epw": "Monte.Real.AB", "koppen": [null, null, null], "orientation": 90.0, "context": null, "area": 57.65, "height": 3.84, "floors": 1.0, "structure": null, "wallThk": 0.448, "uWall": null, "volume": 182.74, "va": 0.869, "psi": 0.919, "thermalMass": 1151.4, "wwr": 3.2, "windowOrient": "S:43% E:42% W:15%", "hearth": 0.285, "roofForm": null, "roofMat": null, "roofPitch": 24.8, "uRoof": null, "atticH": 1.35, "eaveH": 2.5, "eaveDepth": 0.179, "eaveByOrient": "N:0.173m / S:0.186m", "rakeDepth": 0.068, "facadeMat": "clay", "courtyard": "no", "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": false, "steep": false, "lowwwr": true}, "wallType": null, "hasGeom": true, "hasCoord": true}, {"id": "CS_59", "name": "Vierkanthof Reithling Haus", "country": "AT", "year": "c. 1800-1850", "coordRaw": "48°00'07.43\"N 14°45'17.52\"E", "lat": 48.00206, "lon": 14.75487, "elev": null, "epw": "Amstetten", "koppen": [null, null, null], "orientation": 213.5, "context": null, "area": 439.88, "height": 8.15, "floors": 2.0, "structure": "stone/masonry", "wallThk": 0.535, "uWall": null, "volume": 2479.85, "va": 1.906, "psi": 0.845, "thermalMass": 736.0, "wwr": 1.7, "windowOrient": "S:48% E:39% N:12%", "hearth": 0.424, "roofForm": null, "roofMat": "thatched", "roofPitch": 44.1, "uRoof": 0.249, "atticH": 5.04, "eaveH": 3.12, "eaveDepth": 0.901, "eaveByOrient": "N:0.923m / S:0.879m", "rakeDepth": null, "facadeMat": "wood", "courtyard": "yes", "special": null, "flags": "diagonal: N/E/S/W counts unreliable; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": true, "eaves": true, "steep": true, "lowwwr": true}, "wallType": "masonry", "hasGeom": true, "hasCoord": true}, {"id": "CS_60", "name": "Lindenbauer Haus", "country": "AT", "year": "1668", "coordRaw": "47°57'23.65\"N 13°05'24.78\"E", "lat": 47.95657, "lon": 13.09022, "elev": null, "epw": "Mattsee", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_61", "name": "Podere dell'Esse Secco I e II", "country": "IT", "year": "late 18th century", "coordRaw": "43°13'06.04\"N 11°49'20.08\"E", "lat": 43.21834, "lon": 11.82224, "elev": null, "epw": "Arezzo-Molin.Bianco.AP", "koppen": [null, null, null], "orientation": 220.8, "context": null, "area": 468.58, "height": 14.34, "floors": 3.0, "structure": null, "wallThk": 0.369, "uWall": null, "volume": 5847.51, "va": 2.652, "psi": 0.883, "thermalMass": 2440.9, "wwr": 13.9, "windowOrient": "W:38% S:33% N:14% E:14%", "hearth": 0.956, "roofForm": null, "roofMat": null, "roofPitch": 17.9, "uRoof": null, "atticH": 6.41, "eaveH": 7.93, "eaveDepth": 0.477, "eaveByOrient": "N:0.495m / S:0.459m", "rakeDepth": null, "facadeMat": "stone/masonry", "courtyard": "no", "special": null, "flags": "diagonal: N/E/S/W counts unreliable; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": false, "steep": false, "lowwwr": true}, "wallType": null, "hasGeom": true, "hasCoord": true}, {"id": "CS_62", "name": "Alaettinoglů Evi, Antalya", "country": "TR", "year": "early 20th century", "coordRaw": "36°39'41.90\"N 31°59'43.01\"E", "lat": 36.66164, "lon": 31.99528, "elev": null, "epw": "Alanya", "koppen": [null, null, null], "orientation": 270.0, "context": null, "area": 516.17, "height": 19.31, "floors": 2.0, "structure": "stone/masonry", "wallThk": 0.977, "uWall": null, "volume": 8867.32, "va": 3.675, "psi": 1.0, "thermalMass": 8462.7, "wwr": 3.8, "windowOrient": "E:38% W:37% N:13% S:12%", "hearth": 0.927, "roofForm": null, "roofMat": "shingle", "roofPitch": 28.0, "uRoof": 0.841, "atticH": 3.75, "eaveH": 15.57, "eaveDepth": 2.104, "eaveByOrient": "E:3.116m / W:1.092m", "rakeDepth": null, "facadeMat": "stone/masonry", "courtyard": "no", "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": true, "eaves": true, "steep": false, "lowwwr": true}, "wallType": "masonry", "hasGeom": true, "hasCoord": true}, {"id": "CS_63", "name": "Brawner Farmhouse, Manassas, Virginia", "country": "US", "year": "ca. 1820", "coordRaw": "38°48'47.98\"N 77°33'54.48\"W", "lat": 38.81333, "lon": -77.56513, "elev": null, "epw": "Manassas.Rgnl.AP-Davis.Field", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_64", "name": "Rural Mount, Morristown, Tennessee", "country": "US", "year": "ca. 1799", "coordRaw": "36°08'43.85\"N 83°11'21.78\"W", "lat": 36.14551, "lon": -83.18938, "elev": null, "epw": "Lee.County.AP", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_65", "name": "Traditional Dwelling, Shizhang Village (Three-Bay Single)", "country": "CN", "year": "ca. 1870-1910", "coordRaw": "22.63N 110.15E", "lat": 22.63, "lon": 110.15, "elev": null, "epw": "Guiping", "koppen": [null, null, null], "orientation": null, "context": null, "area": 52.2, "height": 5.07, "floors": 0.0, "structure": "wood", "wallThk": 0.204, "uWall": null, "volume": 235.45, "va": 0.953, "psi": 0.926, "thermalMass": 827.0, "wwr": 18.0, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": "shingle", "roofPitch": 20.2, "uRoof": 1.1, "atticH": 1.2, "eaveH": 3.87, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": 0.429, "facadeMat": "clay", "courtyard": "no", "special": null, "flags": "no north arrow; no opening polygons in floor plan; no eave measurement lines; WARN: 85.4km from station; WARN: 85.4km from station", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": false, "steep": false, "lowwwr": true}, "wallType": "timber", "hasGeom": true, "hasCoord": true}, {"id": "CS_66", "name": "Traditional Dwelling, Shizhang Village (Three-Bay Two-Corridor)", "country": "CN", "year": "ca. 1890-1935", "coordRaw": "22.63N 110.15E", "lat": 22.63, "lon": 110.15, "elev": null, "epw": "Guiping", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "WARN: 85.4km from station; WARN: 85.4km from station", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_67", "name": "Dammuso, Pantelleria", "country": "IT", "year": "10th c.", "coordRaw": "36.83N 11.96E", "lat": 36.83, "lon": 11.96, "elev": null, "epw": "Pantelleria.AP", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": 0.0, "structure": "stone/masonry", "wallThk": 0.726, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": 0.0, "windowOrient": null, "hearth": 0.658, "roofForm": null, "roofMat": null, "roofPitch": 0.0, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": 0.043, "eaveByOrient": null, "rakeDepth": null, "facadeMat": "stone/masonry", "courtyard": "no", "special": null, "flags": "geometry missing; WWR=0: no windows in elevations; no north arrow; no opening polygons in floor plan; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": true, "eaves": false, "steep": false, "lowwwr": true}, "wallType": "masonry", "hasGeom": false, "hasCoord": true}, {"id": "CS_68", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_69", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_70", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_71", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_72", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_73", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_74", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_75", "name": "Wada-ke, Ogimachi (Shirakawa-go)", "country": "JPN", "year": "~1830", "coordRaw": "36°15'35.45\"N 136°54'27.88\"E", "lat": 36.25985, "lon": 136.90774, "elev": 470.0, "epw": "Takayama", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_76", "name": "Kitamura House", "country": "JPN", "year": "1687", "coordRaw": "35.37N 139.22E", "lat": 35.37, "lon": 139.22, "elev": 200.0, "epw": "Camp.Zama-Kastner.AF", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_77", "name": "Higashi Shina House", "country": "JPN", "year": "~1855", "coordRaw": "36.30N 136.88E", "lat": 36.3, "lon": 136.88, "elev": null, "epw": "Takayama", "koppen": [null, null, null], "orientation": 97.7, "context": null, "area": null, "height": null, "floors": 4.0, "structure": "wood", "wallThk": 0.171, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": 15.1, "windowOrient": "S:35% E:32% N:25% W:8%", "hearth": 0.67, "roofForm": null, "roofMat": "thatched", "roofPitch": 53.0, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": 1.609, "eaveByOrient": "N:1.635m / S:1.583m", "rakeDepth": 1.016, "facadeMat": "wood", "courtyard": "no", "special": null, "flags": "geometry missing; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": true, "steep": true, "lowwwr": true}, "wallType": "timber", "hasGeom": false, "hasCoord": true}, {"id": "CS_78", "name": "El Fraile, Aysén", "country": "CHL", "year": "1926", "coordRaw": "45.5S 72.0W", "lat": -45.5, "lon": -72.0, "elev": null, "epw": "Coyhaique-Vidal.AP", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_79", "name": "Vogtsbauernhof, Gutach", "country": "DE", "year": "1612", "coordRaw": "48°16'18.58\"N 8°11'49.08\"E", "lat": 48.27183, "lon": 8.19697, "elev": 265.0, "epw": "Lahr-Schwarzwald.AP", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "WARN: elev diff 108m; WARN: elev diff 108m", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_80", "name": "Farmhouse Ostermundigen, Ballenberg", "country": "SZ", "year": "1797", "coordRaw": "46.97N 7.49E", "lat": 46.97, "lon": 7.49, "elev": 540.0, "epw": "Bern.Zollikofen", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_81", "name": "Deans Cottage", "country": "NZ", "year": "1843", "coordRaw": "43°31'36.12\"S 172°35'49.19\"E", "lat": -43.5267, "lon": 172.597, "elev": 12.0, "epw": "Christchurch.Intl.AP", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_82", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_83", "name": "Traditional Mapuche Ruka, Araucánía Region", "country": "CHL", "year": "pre-colonial", "coordRaw": "39S 72W", "lat": -39.0, "lon": -72.0, "elev": null, "epw": "Araucania.AP", "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": true}, {"id": "CS_84", "name": "Kennixton Farmhouse, St Fagans", "country": "Wales", "year": "1610", "coordRaw": "51.593N 4.292W", "lat": 51.593, "lon": -4.292, "elev": 40.0, "epw": "Pembry.Sands", "koppen": [null, null, null], "orientation": null, "context": null, "area": 119.24, "height": 7.27, "floors": 2.0, "structure": "stone/masonry", "wallThk": 0.741, "uWall": null, "volume": 739.63, "va": 1.34, "psi": 0.889, "thermalMass": 2724.2, "wwr": 3.5, "windowOrient": null, "hearth": 0.7, "roofForm": null, "roofMat": "thatched", "roofPitch": 46.3, "uRoof": 0.226, "atticH": 3.53, "eaveH": 3.74, "eaveDepth": 0.22, "eaveByOrient": null, "rakeDepth": null, "facadeMat": "stone/masonry", "courtyard": "no", "special": null, "flags": "no north arrow; no opening polygons in floor plan; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": true, "eaves": false, "steep": true, "lowwwr": true}, "wallType": "masonry", "hasGeom": true, "hasCoord": true}, {"id": "CS_85", "name": "Abernodwydd Farmhouse, St Fagans", "country": "Wales", "year": "1678", "coordRaw": "52.668N 3.474W", "lat": 52.668, "lon": -3.474, "elev": 200.0, "epw": "Aberhosan", "koppen": [null, null, null], "orientation": 135.0, "context": null, "area": 64.58, "height": 7.75, "floors": 2.0, "structure": "timber_frame", "wallThk": 0.244, "uWall": null, "volume": 354.01, "va": 1.093, "psi": 0.927, "thermalMass": 771.3, "wwr": 2.6, "windowOrient": "N:100%", "hearth": 0.962, "roofForm": null, "roofMat": "thatched", "roofPitch": 51.8, "uRoof": 0.207, "atticH": 4.64, "eaveH": 3.11, "eaveDepth": 0.519, "eaveByOrient": "N:0.506m / S:0.532m", "rakeDepth": null, "facadeMat": "timber_frame", "courtyard": "no", "special": null, "flags": "diagonal: N/E/S/W counts unreliable; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": true, "eaves": false, "steep": true, "lowwwr": true}, "wallType": "hybrid", "hasGeom": true, "hasCoord": true}, {"id": "CS_86", "name": "Cilewent Farmhouse, St Fagans", "country": "Wales", "year": "1470/1734", "coordRaw": "52.373N 3.622W", "lat": 52.373, "lon": -3.622, "elev": 350.0, "epw": "Saint.Harmon", "koppen": [null, null, null], "orientation": 345.7, "context": null, "area": 167.44, "height": 6.53, "floors": 2.0, "structure": "stone/masonry", "wallThk": 0.853, "uWall": null, "volume": 914.94, "va": 1.376, "psi": 0.85, "thermalMass": 1806.3, "wwr": 2.8, "windowOrient": "E:44% S:28% N:28%", "hearth": 0.867, "roofForm": null, "roofMat": "shingle", "roofPitch": 45.4, "uRoof": null, "atticH": 3.69, "eaveH": 2.84, "eaveDepth": 0.222, "eaveByOrient": "E:0.223m / W:0.221m", "rakeDepth": 0.071, "facadeMat": "stone/masonry", "courtyard": "no", "special": null, "flags": "OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": true, "eaves": false, "steep": true, "lowwwr": true}, "wallType": "masonry", "hasGeom": true, "hasCoord": true}, {"id": "CS_87", "name": "Farmhouse Søre Rauland, Norsk Folkemuseum", "country": "Norway", "year": "1240", "coordRaw": "60.10N 9.00E", "lat": 60.1, "lon": 9.0, "elev": null, "epw": "Veggli", "koppen": [null, null, null], "orientation": 101.8, "context": null, "area": 90.44, "height": 6.71, "floors": 2.0, "structure": "log_construction", "wallThk": 0.312, "uWall": null, "volume": 466.21, "va": 1.267, "psi": 0.981, "thermalMass": 518.8, "wwr": 0.0, "windowOrient": "N:100%", "hearth": 0.987, "roofForm": null, "roofMat": "thatched", "roofPitch": 29.3, "uRoof": 0.203, "atticH": 3.1, "eaveH": 3.6, "eaveDepth": 0.732, "eaveByOrient": "N:0.828m / S:0.637m", "rakeDepth": 1.109, "facadeMat": "log_construction", "courtyard": "no", "special": null, "flags": "WWR=0: no windows in elevations; OK; OK", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": true, "mass": false, "eaves": true, "steep": false, "lowwwr": true}, "wallType": "timber", "hasGeom": true, "hasCoord": true}, {"id": "CS_88", "name": "Høgstue, Østlandet, Norsk Folkemuseum", "country": "Norway", "year": "1769", "coordRaw": "Østlandet", "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_89", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_90", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_91", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_92", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_93", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_94", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_95", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_96", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_97", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_98", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_99", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}, {"id": "CS_100", "name": null, "country": null, "year": null, "coordRaw": null, "lat": null, "lon": null, "elev": null, "epw": null, "koppen": [null, null, null], "orientation": null, "context": null, "area": null, "height": null, "floors": null, "structure": null, "wallThk": null, "uWall": null, "volume": null, "va": null, "psi": null, "thermalMass": null, "wwr": null, "windowOrient": null, "hearth": null, "roofForm": null, "roofMat": null, "roofPitch": null, "uRoof": null, "atticH": null, "eaveH": null, "eaveDepth": null, "eaveByOrient": null, "rakeDepth": null, "facadeMat": null, "courtyard": null, "special": null, "flags": "SKIP: no coordinates; SKIP: no coordinates", "sim": {"oh": [null, null, null], "comfort": [null, null, null]}, "tags": {"compact": false, "mass": false, "eaves": false, "steep": false, "lowwwr": false}, "wallType": null, "hasGeom": false, "hasCoord": false}];
+
+const SCENARIOS=['Present','2050','2080'];
+const SCENARIOS_LONG=['Present · TMYx','2050 · SSP5-8.5','2080 · SSP5-8.5'];
+const KGCOLOR={A:'#D98E4A',B:'#B5562E',C:'#3E5C6B',D:'#5E7245'};
+const KGNAME={A:'Tropical (A)',B:'Arid (B)',C:'Temperate (C)',D:'Continental (D)'};
+const PENDING='#9AA39E';
+/* full 3-letter Köppen-Geiger palette (standard-style colours) */
+const KOPPEN_COLOR={
+ Af:'#0000FE',Am:'#0078FF',Aw:'#46AAFA',
+ BWh:'#FE0000',BWk:'#FF9695',BSh:'#F5A301',BSk:'#FFDB63',
+ Csa:'#FFFF00',Csb:'#C6C700',Csc:'#969600',
+ Cwa:'#96FF96',Cwb:'#63C764',Cwc:'#329633',
+ Cfa:'#C6FF4E',Cfb:'#63FF4F',Cfc:'#33C701',
+ Dsa:'#FF00FE',Dsb:'#C600C7',Dsc:'#963695',
+ Dwa:'#ABB1FF',Dwb:'#5A77DB',Dwc:'#4C51B5',
+ Dfa:'#00FFFE',Dfb:'#38C7FF',Dfc:'#007E7D',Dfd:'#00455E',
+ ET:'#B2B2B2',EF:'#666666'};
+const KG_FALLBACK={A:'#46AAFA',B:'#FFDB63',C:'#63FF4F',D:'#38C7FF',E:'#B2B2B2'};
+const KOPPEN_LABEL={Af:'Tropical rainforest',Am:'Tropical monsoon',Aw:'Tropical savanna',
+ BWh:'Hot desert',BWk:'Cold desert',BSh:'Hot steppe',BSk:'Cold steppe',
+ Csa:'Hot-summer Mediterranean',Csb:'Warm-summer Mediterranean',
+ Cwa:'Humid subtropical (dry winter)',Cwb:'Subtropical highland',
+ Cfa:'Humid subtropical',Cfb:'Oceanic',Cfc:'Subpolar oceanic',
+ Dwa:'Humid continental (dry winter)',
+ Dfa:'Hot-summer continental',Dfb:'Warm-summer continental',Dfc:'Subarctic',Dfd:'Extremely cold subarctic',
+ ET:'Tundra'};
+function kcolor(code){return code?(KOPPEN_COLOR[code]||KG_FALLBACK[code[0]]||PENDING):PENDING;}
+const STRATEGIES=[
+  {key:'compact',label:'Compact volume'},{key:'mass',label:'High mass'},
+  {key:'eaves',label:'Deep eaves'},{key:'steep',label:'Steep pitch'},{key:'lowwwr',label:'Low WWR'}];
+
+const REGION_OF={
+  CZE:'Central Europe',DE:'Central Europe',AT:'Central Europe',SZ:'Central Europe',
+  SCO:'British Isles',UK:'British Isles','UK/Wales':'British Isles',Wales:'British Isles',
+  JPN:'East Asia',CN:'East Asia',
+  TR:'Anatolia',
+  ESP:'Mediterranean',PT:'Mediterranean',IT:'Mediterranean',
+  US:'North America',CHL:'South America',NZ:'Oceania',Norway:'Scandinavia'};
+function regionOf(c){return REGION_OF[c.country]||'Other';}
+
+/* ===================== MOCKUP FILL =====================
+   Demo mode: invent plausible, deterministic values wherever the workbook is
+   empty so the whole tool is exercised. Real values are kept; only gaps are
+   filled. Nothing here is scientific — it exists to show how the tool works. */
+const MOCK=true;
+const PLACE_BOX={'Central Europe':[[46.5,8.5],[51.5,18]],'British Isles':[[51,-6],[58.5,1]],
+ 'Scandinavia':[[58.5,4],[64.5,12]],'East Asia':[[30,128],[42,142]],'Anatolia':[[36,28],[42,43]],
+ 'Mediterranean':[[37,-8],[43,16]],'South America':[[-46,-75],[-33,-69]],
+ 'North America':[[33,-88],[44,-73]],'Oceania':[[-45,168],[-37,178]]};
+const REGION_LIST=Object.keys(PLACE_BOX);
+const MOCK_NAMES=['Farmstead','Longhouse','Hall house','Courtyard house','Granary dwelling',
+ 'Hill croft','Valley farmhouse','Smallholding','Timber cottage','Stone dwelling','Highland byre-house'];
+function rng(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}
+  return()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
+const SHIFT={Dfc:['Dfc','Dfb','Cfb'],Dfb:['Dfb','Cfb','Cfa'],Dfa:['Dfa','Cfa','Cfa'],Dwa:['Dwa','Cwa','Cwa'],
+ Cfb:['Cfb','Cfb','Cfa'],Cfa:['Cfa','Cfa','Cwa'],Csb:['Csb','Csa','Csa'],Csa:['Csa','Csa','BSk'],
+ Cwa:['Cwa','Cwa','Aw'],BSk:['BSk','BSk','BWk'],BWk:['BWk','BWk','BWh'],Aw:['Aw','Aw','Aw']};
+function mockKoppen(lat,lon,elev,rnd){
+  const a=Math.abs(lat); let k;
+  if(a>58)k='Dfb'; else if(a>54)k=rnd()<0.5?'Dfb':'Cfb'; else if(a>49)k='Cfb';
+  else if(a>43)k=rnd()<0.5?'Cfb':'Cfa'; else if(a>40)k=rnd()<0.5?'Csa':'Cfa';
+  else if(a>34)k=rnd()<0.55?'Cfa':'Csa'; else if(a>27)k='Cwa'; else k=rnd()<0.5?'Aw':'Cwa';
+  if(elev&&elev>800){const colder={Cfa:'Cfb',Cfb:'Dfb',Csa:'Csb',Cwa:'Cfa'};k=colder[k]||k;}
+  return k;
+}
+function mockFill(c){
+  if(!MOCK)return;
+  const rnd=rng(c.id);
+  // region: keep real (from country); otherwise assign a plausible one so the point lands somewhere sensible
+  if(!REGION_OF[c.country]||c.region==='Other'){ c.region=REGION_LIST[Math.floor(rnd()*REGION_LIST.length)]; }
+  // name every case study
+  if(!c.name){ c.name=MOCK_NAMES[Math.floor(rnd()*MOCK_NAMES.length)]+' (mock)'; }
+  // coordinates inside the region box for any case lacking them
+  if(!c.hasCoord){const bx=PLACE_BOX[c.region]||PLACE_BOX['Central Europe'];
+    c.lat=+(bx[0][0]+rnd()*(bx[1][0]-bx[0][0])).toFixed(4);
+    c.lon=+(bx[0][1]+rnd()*(bx[1][1]-bx[0][1])).toFixed(4);
+    c.hasCoord=true;c.coordRaw='(mock)';}
+  if(!c.koppen[0]) c.koppen[0]=mockKoppen(c.lat||45,c.lon||10,c.elev,rnd);
+  const sh=SHIFT[c.koppen[0]]||[c.koppen[0],c.koppen[0],c.koppen[0]];
+  if(!c.koppen[1]) c.koppen[1]=sh[1];
+  if(!c.koppen[2]) c.koppen[2]=sh[2];
+  if(c.psi==null)c.psi=+(0.6+rnd()*0.39).toFixed(3);
+  if(c.wwr==null)c.wwr=+(rnd()*32).toFixed(1);
+  if(c.roofPitch==null)c.roofPitch=+(15+rnd()*40).toFixed(0);
+  if(c.eaveDepth==null)c.eaveDepth=+(0.2+rnd()*1.7).toFixed(3);
+  if(c.wallThk==null)c.wallThk=+(0.15+rnd()*0.65).toFixed(3);
+  if(c.area==null)c.area=+(55+rnd()*320).toFixed(0);
+  if(c.height==null)c.height=+(5+rnd()*11).toFixed(1);
+  if(c.volume==null)c.volume=+(c.area*c.height*0.68).toFixed(0);
+  if(c.va==null)c.va=+(0.9+rnd()*2.4).toFixed(2);
+  if(c.thermalMass==null)c.thermalMass=+(150+rnd()*2600).toFixed(0);
+  if(c.uWall==null)c.uWall=+(0.3+rnd()*1.9).toFixed(2);
+  if(c.uRoof==null)c.uRoof=+(0.2+rnd()*1.6).toFixed(2);
+  if(c.hearth==null)c.hearth=+rnd().toFixed(3);
+  if(c.floors==null)c.floors=Math.floor(1+rnd()*3);
+  if(c.atticH==null)c.atticH=+(2+rnd()*6).toFixed(2);
+  if(c.rakeDepth==null)c.rakeDepth=+(0.1+rnd()*1.2).toFixed(3);
+  if(!c.wallType){c.wallType=['timber','hybrid','masonry'][Math.floor(rnd()*3)];}
+  if(!c.structure)c.structure={timber:'wood',hybrid:'timber_frame',masonry:'stone/masonry'}[c.wallType]+' (mock)';
+  if(!c.epw)c.epw='Nearest.TMYx (mock)';
+  c.tags={compact:c.psi>=0.85,mass:c.wallType!=='timber',eaves:c.eaveDepth>=0.6,steep:c.roofPitch>=35,lowwwr:c.wwr<=20};
+  const a=Math.abs(c.lat||45),warmth=Math.max(0,(48-a))/48;
+  if(c.sim.oh[0]==null){const b=Math.round(70+warmth*1300+rnd()*220);c.sim.oh=[b,Math.round(b*1.9),Math.round(b*3.2)];}
+  if(c.sim.comfort[0]==null){const c0=Math.round(92-warmth*26-rnd()*8);c.sim.comfort=[c0,Math.max(36,Math.round(c0*0.86)),Math.max(26,Math.round(c0*0.7))];}
+  c.mockMeanT=+(28-0.45*a-(c.elev?c.elev*0.0065:0)+(rnd()-0.5)*3).toFixed(1);
+}
+function processCases(rawArray){
+  rawArray.forEach(c=>{ c.region=regionOf(c); mockFill(c); });
+  return rawArray;
+}
+CASES = processCases(CASES);
+
+let scn=0,selectedId=null,map=null,markers=[];
+const activeTags=new Set();let fRegion='',fKoppen='';
+const byId=id=>CASES.find(c=>c.id===id);
+const grp=code=>code?code[0]:null;
+const noData='<span class="nodata">NO_DATA</span>';
+const fmt=(v,u,d=2)=>v==null?noData:(typeof v==='number'?(+v.toFixed(d)):v)+(u||'');
+
+function initMap(){
+  map=L.map('map',{scrollWheelZoom:false}).setView([40,20],2);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap &copy; CARTO',maxZoom:18}).addTo(map);
+  rebuildMarkers();
+}
+function rebuildMarkers(){
+  markers.forEach(mk=>map.removeLayer(mk));markers=[];
+  const bounds=[];
+  CASES.filter(c=>c.hasCoord).forEach(c=>{
+    const mk=L.circleMarker([c.lat,c.lon],{radius:7,color:'#1F2421',weight:1.2,fillColor:kcolor(c.koppen[scn]),fillOpacity:0.92});
+    mk.bindTooltip(`<b>${c.name||c.id}</b><br>${c.region} · ${c.koppen[scn]||'–'}`,{direction:'top',offset:[0,-6]});
+    mk.on('click',()=>selectCase(c.id));mk._cid=c.id;mk.addTo(map);markers.push(mk);bounds.push([c.lat,c.lon]);
+  });
+  if(bounds.length)map.fitBounds(bounds,{padding:[30,30]});
+  renderLegend();
+}
+function renderLegend(){
+  const codes=[...new Set(CASES.flatMap(c=>c.koppen).filter(Boolean))]
+    .sort((a,b)=> a[0]===b[0] ? a.localeCompare(b) : 'ABCDE'.indexOf(a[0])-'ABCDE'.indexOf(b[0]));
+  document.getElementById('mapLegend').innerHTML=
+    '<div style="font-weight:600;margin-bottom:5px;">KÖPPEN-GEIGER ZONE</div>'+
+    '<div style="display:grid;grid-template-columns:auto auto;gap:1px 12px;">'+
+    codes.map(k=>`<div class="legend-row" title="${KOPPEN_LABEL[k]||''}"><span class="legend-dot" style="background:${kcolor(k)};border:1px solid #1F2421"></span>${k}</div>`).join('')+
+    '</div>';
+}
+function refreshMap(){
+  markers.forEach(mk=>{const c=byId(mk._cid),vis=pass(c);
+    mk.setStyle({fillColor:kcolor(c.koppen[scn]),opacity:vis?1:0.12,fillOpacity:vis?0.92:0.07});});
+}
+function pass(c){
+  if(fRegion&&c.region!==fRegion)return false;
+  if(fKoppen&&grp(c.koppen[scn])!==fKoppen)return false;
+  for(const t of activeTags)if(!c.tags[t])return false;
+  return true;
+}
+function applyFilter(){
+  refreshMap();
+  const vis=CASES.filter(pass),mapped=vis.filter(c=>c.hasCoord).length;
+  document.getElementById('filterCount').textContent=`${vis.length}/${CASES.length} cases · ${mapped} mapped`;
+  renderUnmapped(vis);
+  if(selectedId&&!pass(byId(selectedId))){selectedId=null;renderPanel();}
+}
+function renderUnmapped(vis){
+  const um=vis.filter(c=>!c.hasCoord);
+  document.getElementById('unmapped').innerHTML=
+    `<div class="ul">${um.length} without coordinates — click to inspect</div>`+
+    `<div class="unmapped-chips">${um.map(c=>`<button class="uchip" data-id="${c.id}">${c.id}${c.name?' · '+c.name:''}</button>`).join('')||'<span style="font-family:var(--mono);font-size:10.5px;color:var(--ink-faint)">none</span>'}</div>`;
+  document.querySelectorAll('.uchip').forEach(b=>b.addEventListener('click',()=>selectCase(b.dataset.id)));
+}
+function refreshRegionOptions(){
+  const rs=document.getElementById('fRegion');
+  rs.querySelectorAll('option:not(:first-child)').forEach(o=>o.remove());
+  const regions=[...new Set(CASES.map(c=>c.region))].sort();
+  regions.forEach(r=>{const o=document.createElement('option');o.value=r;o.textContent=r;rs.appendChild(o);});
+}
+function buildFilters(){
+  refreshRegionOptions();
+  const rs=document.getElementById('fRegion');
+  rs.addEventListener('change',e=>{fRegion=e.target.value;applyFilter();});
+  document.getElementById('fKoppen').addEventListener('change',e=>{fKoppen=e.target.value;applyFilter();});
+  const tf=document.getElementById('tagFilter');
+  STRATEGIES.forEach(s=>{const b=document.createElement('button');b.className='tag-toggle';b.textContent=s.label;
+    b.addEventListener('click',()=>{activeTags.has(s.key)?(activeTags.delete(s.key),b.classList.remove('on')):(activeTags.add(s.key),b.classList.add('on'));applyFilter();});tf.appendChild(b);});
+  document.getElementById('filterReset').addEventListener('click',()=>{fRegion='';fKoppen='';activeTags.clear();rs.value='';document.getElementById('fKoppen').value='';document.querySelectorAll('.tag-toggle').forEach(b=>b.classList.remove('on'));applyFilter();});
+}
+/* called after a fresh Excel upload replaces the whole dataset */
+function rebuildAppFromCases(newCases){
+  disposeViewer();
+  CASES=processCases(newCases);
+  selectedId=null;fRegion='';fKoppen='';activeTags.clear();
+  document.getElementById('fRegion').value='';document.getElementById('fKoppen').value='';
+  document.querySelectorAll('.tag-toggle').forEach(b=>b.classList.remove('on'));
+  refreshRegionOptions();
+  rebuildMarkers();
+  applyFilter();
+  renderPanel();
+  buildCorpusStats();
+}
+
+/* ===================== TAB 0 — ADMIN: ADD CASE STUDIES =====================
+   Client-side only. The password is a soft gate for a personal/shared tool,
+   not real security — visible to anyone who reads the page source. DXF
+   folder access uses the File System Access API where the browser supports
+   it (Chrome/Edge: real, persistent reads/writes to a folder you pick);
+   elsewhere it falls back to an in-memory, session-only file list. */
+const ADMIN_PASSWORD='pentice';
+let adminUnlocked=false;
+let dirHandle=null;
+let sessionDxfFiles=[];
+let excelSourceName='cs_output_v5.xlsx (embedded at build time)';
+
+/* ---- Excel column mapper: matches by header text, not position, so a
+   re-uploaded workbook with reordered/added columns still parses. ---- */
+const COLMAP_DEF={
+  id:[h=>h==='id'],
+  name:[h=>h==='case study'],
+  country:[h=>h.startsWith('country')],
+  year:[h=>h==='year'],
+  coordinates:[h=>h.startsWith('coordinates')],
+  elevation:[h=>h.startsWith('elevation')],
+  epw:[h=>h.startsWith('epw')],
+  koppenPresent:[h=>(h.includes('köppen')||h.includes('koppen'))&&!h.includes('future')],
+  koppen2050:[h=>h.includes('future')&&(h.includes('2036')||h.includes('2050'))],
+  koppen2080:[h=>h.includes('future')&&(h.includes('2066')||h.includes('2080'))],
+  area:[h=>h.startsWith('area')],
+  height:[h=>h.includes('building_height')||h==='height'],
+  floors:[h=>h==='floors'],
+  structure:[h=>h.startsWith('structure')],
+  wallThk:[h=>h.includes('exterior_wall_thickness')&&!h.includes('north')&&!h.includes('east')],
+  uWall:[h=>h.includes('u-value')&&h.includes('wall')],
+  volume:[h=>h.startsWith('volume')],
+  va:[h=>h==='v/a'],
+  psi:[h=>h.includes('compactness')],
+  thermalMass:[h=>h.includes('thermal_mass')],
+  wwr:[h=>h.startsWith('wwr')],
+  hearth:[h=>h.includes('hearth')],
+  roofPitch:[h=>h.startsWith('roof_pitch')],
+  uRoof:[h=>h.includes('u-value')&&h.includes('roof')],
+  atticH:[h=>h.includes('attic')],
+  eaveDepth:[h=>h.includes('eave_depth')],
+  rakeDepth:[h=>h.includes('rake_depth')],
+  flags:[h=>h.startsWith('flags')],
+  oh00:[h=>h==='overheating_hours_00'],oh50:[h=>h==='overheating_hours_50'],oh80:[h=>h==='overheating_hours_80'],
+  cf00:[h=>h.includes('adaptive_comfort')&&h.endsWith('00')],cf50:[h=>h.includes('adaptive_comfort')&&h.endsWith('50')],cf80:[h=>h.includes('adaptive_comfort')&&h.endsWith('80')],
+};
+function findCol(headers,matchers){
+  for(const m of matchers){for(let i=0;i<headers.length;i++){if(m((headers[i]||'').toString().trim().toLowerCase()))return i;}}
+  return -1;
+}
+function locateHeaderRow(rows){
+  for(let r=0;r<Math.min(6,rows.length);r++){const row=rows[r]||[];if(row.some(v=>(v||'').toString().trim().toLowerCase()==='id'))return r;}
+  return 1;
+}
+function parseCoordJS(s){
+  if(!s)return[null,null];s=String(s).trim();
+  let m=s.match(/(\d+)[°](\d+)['′](\d+(?:\.\d+)?)"?\s*([NS])\s+(\d+)[°](\d+)['′](\d+(?:\.\d+)?)"?\s*([EW])/);
+  if(m){let la=+m[1]+ +m[2]/60+ +m[3]/3600;if(m[4]==='S')la=-la;let lo=+m[5]+ +m[6]/60+ +m[7]/3600;if(m[8]==='W')lo=-lo;return[+la.toFixed(5),+lo.toFixed(5)];}
+  m=s.match(/([\d.]+)\s*([NS])\s+([\d.]+)\s*([EW])/);
+  if(m){let la=+m[1],lo=+m[3];if(m[2]==='S')la=-la;if(m[4]==='W')lo=-lo;return[+la.toFixed(5),+lo.toFixed(5)];}
+  m=s.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+  if(m)return[+(+m[1]).toFixed(5),+(+m[2]).toFixed(5)];
+  return[null,null];
+}
+function wallTypeFromStructure(s){
+  if(!s)return null;const t=String(s).toLowerCase();
+  if(['stone','masonry','brick','adobe','tuff'].some(k=>t.includes(k)))return'masonry';
+  if(['fachwerk','frame','hybrid','timber frame'].some(k=>t.includes(k)))return'hybrid';
+  if(['timber','log','wood','blockbau'].some(k=>t.includes(k)))return'timber';
+  return'other';
+}
+function parseWorkbookToCases(workbook){
+  const sheetName=workbook.SheetNames.includes('Case Studies')?'Case Studies':workbook.SheetNames[0];
+  const ws=workbook.Sheets[sheetName];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true});
+  const headerRowIdx=locateHeaderRow(rows);
+  const headers=(rows[headerRowIdx]||[]).map(h=>(h||'').toString());
+  const idx={};Object.keys(COLMAP_DEF).forEach(k=>idx[k]=findCol(headers,COLMAP_DEF[k]));
+  const numOf=v=>{if(v==null||v==='')return null;const n=parseFloat(v);return Number.isFinite(n)?n:null;};
+  const out=[];
+  for(let r=headerRowIdx+1;r<rows.length;r++){
+    const row=rows[r];if(!row)continue;
+    const get=key=>{const i=idx[key];return i>=0?row[i]:null;};
+    const id=get('id');if(!id)continue;
+    const[lat,lon]=parseCoordJS(get('coordinates'));
+    const structure=get('structure');
+    out.push({
+      id:String(id),name:get('name')||null,country:get('country')||null,year:get('year')||null,
+      coordRaw:get('coordinates')||null,lat,lon,elev:numOf(get('elevation')),epw:get('epw')||null,
+      koppen:[get('koppenPresent')||null,get('koppen2050')||null,get('koppen2080')||null],
+      area:numOf(get('area')),height:numOf(get('height')),floors:numOf(get('floors')),
+      structure,wallThk:numOf(get('wallThk')),uWall:numOf(get('uWall')),
+      volume:numOf(get('volume')),va:numOf(get('va')),psi:numOf(get('psi')),
+      thermalMass:numOf(get('thermalMass')),wwr:numOf(get('wwr')),hearth:numOf(get('hearth')),
+      roofPitch:numOf(get('roofPitch')),uRoof:numOf(get('uRoof')),atticH:numOf(get('atticH')),
+      eaveDepth:numOf(get('eaveDepth')),rakeDepth:numOf(get('rakeDepth')),flags:get('flags')||null,
+      sim:{oh:[numOf(get('oh00')),numOf(get('oh50')),numOf(get('oh80'))],comfort:[numOf(get('cf00')),numOf(get('cf50')),numOf(get('cf80'))]},
+      wallType:wallTypeFromStructure(structure),
+      hasGeom:numOf(get('psi'))!=null,
+      hasCoord:lat!=null,
+    });
+  }
+  return out;
+}
+
+/* ---- DXF folder ---- */
+function fmtBytes(n){if(n<1024)return n+' B';if(n<1048576)return(n/1024).toFixed(1)+' KB';return(n/1048576).toFixed(2)+' MB';}
+async function connectFolder(){
+  if(!window.showDirectoryPicker){return;}
+  try{dirHandle=await window.showDirectoryPicker();await refreshDxfList();}catch(e){/* user cancelled */}
+}
+async function refreshDxfList(){
+  if(!dirHandle)return;
+  const entries=[];
+  for await(const[name,handle] of dirHandle.entries()){
+    if(handle.kind==='file'&&name.toLowerCase().endsWith('.dxf')){
+      const file=await handle.getFile();entries.push({name,size:file.size,modified:file.lastModified});
+    }
+  }
+  entries.sort((a,b)=>a.name.localeCompare(b.name));
+  renderDxfTable(entries,true);
+  renderAdminStatus();
+}
+async function addDxfFiles(fileList){
+  const files=[...fileList].filter(f=>f.name.toLowerCase().endsWith('.dxf'));
+  if(!files.length)return;
+  if(dirHandle){
+    for(const f of files){
+      const handle=await dirHandle.getFileHandle(f.name,{create:true});
+      const writable=await handle.createWritable();await writable.write(f);await writable.close();
+    }
+    await refreshDxfList();
+  }else{
+    files.forEach(f=>{sessionDxfFiles=sessionDxfFiles.filter(x=>x.name!==f.name);sessionDxfFiles.push({name:f.name,size:f.size,modified:f.lastModified});});
+    sessionDxfFiles.sort((a,b)=>a.name.localeCompare(b.name));
+    renderDxfTable(sessionDxfFiles,false);
+  }
+}
+async function removeDxfFile(name){
+  if(dirHandle){try{await dirHandle.removeEntry(name);}catch(e){}await refreshDxfList();}
+  else{sessionDxfFiles=sessionDxfFiles.filter(f=>f.name!==name);renderDxfTable(sessionDxfFiles,false);}
+}
+function renderDxfTable(list,persistent){
+  const el=document.getElementById('dxfFileList');if(!el)return;
+  if(!list.length){el.innerHTML='<div class="admin-empty">No DXF files yet.</div>';return;}
+  el.innerHTML=`<table class="admin-table"><tr><th>File</th><th>Size</th><th>Modified</th><th></th></tr>${
+    list.map(f=>`<tr><td>${f.name}</td><td>${fmtBytes(f.size)}</td><td>${new Date(f.modified).toLocaleDateString()}</td><td><button class="admin-remove" data-rm="${f.name}">remove</button></td></tr>`).join('')
+  }</table><div class="admin-note">${persistent?'Saved to the connected folder on disk.':'Session-only — not saved to disk (no folder connected).'}</div>`;
+  el.querySelectorAll('[data-rm]').forEach(b=>b.addEventListener('click',()=>removeDxfFile(b.dataset.rm)));
+}
+
+/* ---- Excel re-upload ---- */
+function handleExcelFile(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const parsed=parseWorkbookToCases(wb);
+      if(!parsed.length){showExcelMsg('No rows with an ID column found — check the sheet has a header row containing "ID".',true);return;}
+      const old=CASES.length;
+      rebuildAppFromCases(parsed);
+      excelSourceName=file.name+' (uploaded '+new Date().toLocaleString()+')';
+      showExcelMsg(`Replaced ${old} case studies with ${parsed.length} from ${file.name}.`,false);
+      renderAdminStatus();
+    }catch(err){showExcelMsg('Could not parse this file: '+err.message,true);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+function showExcelMsg(text,isError){
+  const el=document.getElementById('excelMsg');if(!el)return;
+  el.innerHTML=`<div class="${isError?'admin-note':'admin-success'}" style="${isError?'color:var(--rust);':''}">${text}</div>`;
+}
+
+/* ---- admin view rendering ---- */
+function slugify(s){return(s||'file').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40);}
+function seedDxfFromCases(){
+  sessionDxfFiles=CASES.filter(c=>c.hasGeom).map(c=>{
+    const rnd=rngLocal(c.id+'dxfmeta'),size=Math.round(60000+rnd()*420000),daysAgo=Math.round(30+rnd()*640);
+    return{name:`${c.id}_${slugify(c.name)}.dxf`,size,modified:Date.now()-daysAgo*86400000};
+  }).sort((a,b)=>a.name.localeCompare(b.name));
+}
+function renderAdminStatus(){
+  const fEl=document.getElementById('folderStatus');
+  if(fEl)fEl.innerHTML=dirHandle?`Connected folder: <b>${dirHandle.name}</b>`:`No folder connected — showing the ${sessionDxfFiles.length} DXF files already behind the case studies in Tab I (session list; not read from a real folder until you connect one).`;
+  const eEl=document.getElementById('excelStatus');
+  if(eEl){
+    const withCoord=CASES.filter(c=>c.hasCoord).length,withGeom=CASES.filter(c=>c.hasGeom).length;
+    eEl.innerHTML=`Currently loaded: <b>${excelSourceName}</b>
+      <div class="climate-stat-row" style="margin-top:10px;">
+        <div class="cstat"><div class="v">${CASES.length}</div><div class="k">case studies</div></div>
+        <div class="cstat"><div class="v">${withCoord}</div><div class="k">with coordinates</div></div>
+        <div class="cstat"><div class="v">${withGeom}</div><div class="k">with full geometry</div></div>
+        <div class="cstat"><div class="v">${sessionDxfFiles.length}</div><div class="k">DXF files on file</div></div>
+      </div>`;
+  }
+}
+function renderAdminView(){
+  const el=document.getElementById('adminContent');
+  if(!adminUnlocked){
+    el.innerHTML=`
+      <div class="gate-card">
+        <svg class="lock-icon" viewBox="0 0 24 24"><path d="M6 10V8a6 6 0 0112 0v2h1a1 1 0 011 1v10a1 1 0 01-1 1H5a1 1 0 01-1-1V11a1 1 0 011-1h1zm2 0h8V8a4 4 0 00-8 0v2z" fill="currentColor"/></svg>
+        <h2>Administrative area</h2>
+        <p>Add DXF case studies and replace the Excel workbook. Client-side password only — not real security, just a soft gate for shared use.</p>
+        <input class="gate-input" type="password" id="gatePw" placeholder="Password">
+        <button class="gate-btn" id="gateBtn">Unlock</button>
+        <div class="gate-error" id="gateError"></div>
+      </div>`;
+    document.getElementById('gateBtn').addEventListener('click',attemptUnlock);
+    document.getElementById('gatePw').addEventListener('keydown',e=>{if(e.key==='Enter')attemptUnlock();});
+    return;
+  }
+  const fsaSupported=!!window.showDirectoryPicker;
+  el.innerHTML=`
+    <div class="admin-wrap">
+      <div class="admin-section">
+        <div class="admin-section-head"><span>DXF case-study folder</span>${fsaSupported?'<button class="btn-secondary" id="connectFolderBtn">Connect folder</button>':''}</div>
+        <div class="admin-status" id="folderStatus"></div>
+        ${fsaSupported?'':'<div class="admin-note" style="margin-bottom:10px;">Your browser doesn\'t support persistent folder access (Chrome/Edge only) — dropped files below are session-only and not written to disk.</div>'}
+        <div class="dropzone" id="dxfDropzone"><span class="big">Drop .dxf files here</span>or click to choose files</div>
+        <input type="file" id="dxfFileInput" accept=".dxf" multiple style="display:none;">
+        <div id="dxfFileList"></div>
+      </div>
+
+      <div class="admin-section">
+        <div class="admin-section-head"><span>Case-study workbook (Excel)</span></div>
+        <div class="admin-status" id="excelStatus"></div>
+        <div class="dropzone" id="excelDropzone"><span class="big">Drop a replacement .xlsx here</span>or click to choose a file — this overwrites all currently loaded case studies</div>
+        <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display:none;">
+        <div id="excelMsg"></div>
+        <div class="admin-note">Matched by column header text (Köppen zone, Compactness ψ, WWR, etc.), so reordered or extra columns still parse. Missing fields fall back to the same demo-fill logic used elsewhere in this prototype.</div>
+      </div>
+    </div>`;
+  renderAdminStatus();
+  renderDxfTable(dirHandle?[]:sessionDxfFiles,!!dirHandle);
+  if(dirHandle)refreshDxfList();
+  wireAdminInteractions();
+}
+function attemptUnlock(){
+  const pw=document.getElementById('gatePw').value;
+  if(pw===ADMIN_PASSWORD){adminUnlocked=true;renderAdminView();}
+  else{document.getElementById('gateError').textContent='Incorrect password.';}
+}
+function wireAdminInteractions(){
+  const fb=document.getElementById('connectFolderBtn');
+  if(fb)fb.addEventListener('click',connectFolder);
+  const dz=document.getElementById('dxfDropzone'),fi=document.getElementById('dxfFileInput');
+  dz.addEventListener('click',()=>fi.click());
+  fi.addEventListener('change',()=>addDxfFiles(fi.files));
+  ['dragover','dragleave','drop'].forEach(evt=>dz.addEventListener(evt,e=>{
+    e.preventDefault();
+    if(evt==='dragover')dz.classList.add('dragover');
+    if(evt==='dragleave')dz.classList.remove('dragover');
+    if(evt==='drop'){dz.classList.remove('dragover');addDxfFiles(e.dataTransfer.files);}
+  }));
+  const ez=document.getElementById('excelDropzone'),ei=document.getElementById('excelFileInput');
+  ez.addEventListener('click',()=>ei.click());
+  ei.addEventListener('change',()=>{if(ei.files[0])handleExcelFile(ei.files[0]);});
+  ['dragover','dragleave','drop'].forEach(evt=>ez.addEventListener(evt,e=>{
+    e.preventDefault();
+    if(evt==='dragover')ez.classList.add('dragover');
+    if(evt==='dragleave')ez.classList.remove('dragover');
+    if(evt==='drop'){ez.classList.remove('dragover');if(e.dataTransfer.files[0])handleExcelFile(e.dataTransfer.files[0]);}
+  }));
+}
+function recsFor(c,h){
+  const out=[],pres=c.koppen[0],fut=c.koppen[h];
+  if(pres&&fut&&pres!==fut)out.push(`Köppen shift ${pres} → ${fut}: re-test passive performance under the new envelope.`);
+  if(c.wwr!=null&&c.wwr<=20)out.push('Low / zero WWR limits night-purge ventilation — add operable or shaded openings if the cooling load rises.');
+  if(c.wallType==='masonry'||c.wallType==='hybrid')out.push('High thermal mass without assured night flush risks re-radiating stored daytime heat — pair mass with night ventilation.');
+  if(c.roofPitch!=null&&c.roofPitch>=35)out.push('Steep pitch favours stack ventilation — open ridge/eave vents to exploit the attic buffer in summer.');
+  if(c.eaveDepth!=null&&c.eaveDepth<0.6)out.push('Shallow eaves — extend overhang or add seasonal shading on the sun-facing façade as solar load increases.');
+  out.push('Provisional — confirm against simulation (overheating_hours / ASHRAE-55) once those columns are populated.');
+  return out;
+}
+
+function selectCase(id){selectedId=id;renderPanel();}
+
+/* ---- parametric vernacular-house illustration drawn from the metrics ---- */
+function houseSVG(c){
+  const W=320,H=160,cx=W/2;
+  const wallW=Math.min(180,80+(c.area||120)*0.35), wallH=42+Math.min(40,(c.floors||1)*16);
+  const baseY=H-22, wallTop=baseY-wallH, wallL=cx-wallW/2, wallR=cx+wallW/2;
+  const pitch=(c.roofPitch||35)*Math.PI/180;
+  const rise=Math.min(70,(wallW/2)*Math.tan(pitch));
+  const eaveOver=Math.min(34,(c.eaveDepth||0.5)*26);
+  const ridgeY=wallTop-rise;
+  const wallFill={timber:'#C98A52',hybrid:'#B89B72',masonry:'#A9A296',other:'#B6AD97'}[c.wallType]||'#B6AD97';
+  const roofFill='#6E4B36';
+  // windows from WWR
+  const nWin=Math.max(0,Math.round((c.wwr||0)/6)); let win='';
+  const winY=wallTop+wallH*0.32, ww=12, wh=16;
+  for(let i=0;i<Math.min(nWin,6);i++){const gap=wallW/(Math.min(nWin,6)+1);const wx=wallL+gap*(i+1)-ww/2;
+    win+=`<rect x="${wx.toFixed(0)}" y="${winY.toFixed(0)}" width="${ww}" height="${wh}" rx="1.5" fill="#EAF1F4" stroke="#3E5C6B" stroke-width="1.2"/>`;}
+  const doorW=14,doorH=24,dx=cx-doorW/2;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="schematic of ${c.name||c.id}">
+    <rect x="0" y="0" width="${W}" height="${H}" fill="#F4F1E6"/>
+    <line x1="14" y1="${baseY}" x2="${W-14}" y2="${baseY}" stroke="#CFC4A4" stroke-width="1.5"/>
+    <rect x="${wallL}" y="${wallTop}" width="${wallW}" height="${wallH}" fill="${wallFill}" stroke="#5A4632" stroke-width="1.4"/>
+    <polygon points="${(wallL-eaveOver).toFixed(0)},${wallTop} ${cx},${ridgeY.toFixed(0)} ${(wallR+eaveOver).toFixed(0)},${wallTop}" fill="${roofFill}" stroke="#3C291C" stroke-width="1.4"/>
+    ${win}
+    <rect x="${dx}" y="${baseY-doorH}" width="${doorW}" height="${doorH}" rx="1.5" fill="#4A3422"/>
+    <text x="${W-12}" y="${H-8}" text-anchor="end" font-family="IBM Plex Mono" font-size="8.5" fill="#8B8C7E">pitch ${c.roofPitch||'–'}° · ${c.wallType||'–'} · WWR ${c.wwr!=null?c.wwr+'%':'–'}</text>
+  </svg>`;
+}
+
+/* ---- monthly mean-T chart (mock sinusoid), present vs current scenario ---- */
+const MONTHS=['J','F','M','A','M','J','J','A','S','O','N','D'];
+
+/* ---- monthly climate series (mock, deterministic per case) ---- */
+function monthlyTemp(c,s){
+  const south=(c.lat||0)<0;
+  const meanT=(c.mockMeanT!=null?c.mockMeanT:10)+[0,2.0,3.8][s];
+  const amp=8+Math.abs(45-Math.abs(c.lat||45))*0.12;
+  return Array.from({length:12},(_,m)=>{const ph=south?m+6:m;return meanT-amp*Math.cos(2*Math.PI*ph/12);});
+}
+function monthlyPrecip(c,s){
+  const rnd=rngLocal(c.id+'precip'),k=c.koppen[0]||'Cfb',second=k[1],south=(c.lat||0)<0;
+  const annual=500+rnd()*900,dryFactor=0.22+rnd()*0.15;
+  return Array.from({length:12},(_,m)=>{
+    const ph=south?(m+6)%12:m;let seasonal;
+    if(second==='s'){seasonal=(ph>=4&&ph<=8)?dryFactor:1.3;}
+    else if(second==='w'){seasonal=(ph<=1||ph===11)?dryFactor:1.2;}
+    else{seasonal=1+0.15*Math.sin(2*Math.PI*ph/12);}
+    const warmAdj=second==='s'?(1-0.06*s):(1+0.04*s);
+    return Math.max(2,Math.round(annual/12*seasonal*warmAdj));
+  });
+}
+function monthlyRH(c,s){
+  const precip=monthlyPrecip(c,s),temp=monthlyTemp(c,s),maxP=Math.max(...precip);
+  return temp.map((t,i)=>Math.max(28,Math.min(96,Math.round(55+(precip[i]/maxP)*25-(t-15)*0.6-s*1.5))));
+}
+function monthlyGHI(c,s){
+  const south=(c.lat||0)<0,lat=Math.abs(c.lat||45),base=3.6+s*0.1,amp=1.3+(lat/90)*2.4;
+  return Array.from({length:12},(_,m)=>{const ph=south?m+6:m;return+Math.max(0.6,base-amp*Math.cos(2*Math.PI*ph/12)).toFixed(2);});
+}
+function monthlyWind(c,s){
+  const rnd=rngLocal(c.id+'wind'),base=2.5+rnd()*3.5;
+  return Array.from({length:12},(_,m)=>+( base*(1+0.25*Math.cos(2*Math.PI*m/12))*(1+s*0.02)).toFixed(1));
+}
+function windRose(c){
+  const rnd=rngLocal(c.id+'rose'),dirs=['N','NE','E','SE','S','SW','W','NW'],prevailing=Math.floor(rnd()*8);
+  const raw=dirs.map((d,i)=>{const dist=Math.min(Math.abs(i-prevailing),8-Math.abs(i-prevailing));
+    return{dir:d,freq:Math.max(2,22-dist*4.5+(rnd()-0.5)*6),speed:Math.max(1.5,6-dist*0.6+(rnd()-0.5)*2)};});
+  const sum=raw.reduce((a,d)=>a+d.freq,0);
+  return raw.map(d=>({dir:d.dir,freq:+(d.freq/sum*100).toFixed(1),speed:+d.speed.toFixed(1)}));
+}
+function hdd(c,s){return Math.round(monthlyTemp(c,s).reduce((a,T)=>a+Math.max(0,18-T)*30,0));}
+function cdd(c,s){return Math.round(monthlyTemp(c,s).reduce((a,T)=>a+Math.max(0,T-18)*30,0));}
+function extremeEvents(c,s){
+  const rnd=rngLocal(c.id+'extreme'+s),t=monthlyTemp(c,s),maxT=Math.max(...t),minT=Math.min(...t);
+  return{
+    heatwave:Math.max(0,Math.round((maxT-26)*2.6+rnd()*5+s*5)),
+    frost:Math.max(0,Math.round((6-minT)*9-s*14+rnd()*6)),
+    heavyRain:Math.max(0,Math.round(3+rnd()*9+s*2.2)),
+    maxGust:Math.round(58+rnd()*48+s*4)
+  };
+}
+function satVaporPressure(Tc){return 6.1094*Math.exp(17.625*Tc/(Tc+243.04));}
+function humidityRatio(Tc,RHfrac){const Es=satVaporPressure(Tc),Pv=Math.min(RHfrac*Es,1013.25*0.95),P=1013.25;return 622*Pv/(P-Pv);}
+
+/* ---- chart builders ---- */
+function tempPrecipChart(c,s){
+  const W=300,H=140,pad=24,temp=monthlyTemp(c,s),precip=monthlyPrecip(c,s);
+  let tLo=Math.floor(Math.min(...temp)/5)*5,tHi=Math.ceil(Math.max(...temp)/5)*5;if(tHi===tLo)tHi=tLo+5;
+  const pMax=Math.max(...precip,20);
+  const x=i=>pad+i*(W-pad-8)/11,yT=v=>H-pad-((v-tLo)/(tHi-tLo))*(H-pad-28),baseY=H-pad,barW=((W-pad-8)/11)*0.55;
+  let g='';
+  for(let v=tLo;v<=tHi;v+=Math.max(5,Math.round((tHi-tLo)/4/5)*5)){g+=`<line x1="${pad}" y1="${yT(v)}" x2="${W-6}" y2="${yT(v)}" stroke="#E4DCC4" stroke-width="1"/><text x="2" y="${yT(v)+3}" font-family="IBM Plex Mono" font-size="7.5" fill="#8B8C7E">${v}°</text>`;}
+  precip.forEach((p,i)=>{const bh=(p/pMax)*(H-pad-28)*0.62;g+=`<rect x="${(x(i)-barW/2).toFixed(1)}" y="${(baseY-bh).toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" fill="#3E5C6B" opacity="0.55" rx="1.5"/>`;});
+  g+=MONTHS.map((m,i)=>`<text x="${x(i)}" y="${H-6}" font-family="IBM Plex Mono" font-size="7.5" fill="#8B8C7E" text-anchor="middle">${m}</text>`).join('');
+  const path=temp.map((v,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+yT(v).toFixed(1)).join(' ');
+  g+=`<path d="${path}" fill="none" stroke="#C1622E" stroke-width="2"/>`+temp.map((v,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${yT(v).toFixed(1)}" r="2" fill="#C1622E"/>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="monthly temperature and precipitation">${g}</svg>`;
+}
+function rhChart(c,s){
+  const W=300,H=86,pad=22,rh=monthlyRH(c,s),x=i=>pad+i*(W-pad-6)/11,y=v=>H-18-((v-20)/80)*(H-34);
+  let g='';
+  [40,60,80,100].forEach(v=>{g+=`<line x1="${pad}" y1="${y(v)}" x2="${W-6}" y2="${y(v)}" stroke="#E4DCC4" stroke-width="1"/><text x="2" y="${y(v)+3}" font-family="IBM Plex Mono" font-size="7.5" fill="#8B8C7E">${v}</text>`;});
+  g+=MONTHS.map((m,i)=>`<text x="${x(i)}" y="${H-4}" font-family="IBM Plex Mono" font-size="7" fill="#8B8C7E" text-anchor="middle">${m}</text>`).join('');
+  const path=rh.map((v,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)).join(' ');
+  g+=`<path d="${path}" fill="none" stroke="#5E7245" stroke-width="2"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="monthly relative humidity">${g}</svg>`;
+}
+function ghiChart(c,s){
+  const W=300,H=86,pad=22,ghi=monthlyGHI(c,s),maxG=Math.ceil(Math.max(...ghi)),x=i=>pad+i*(W-pad-6)/11,barW=((W-pad-6)/11)*0.6,baseY=H-18;
+  let g=MONTHS.map((m,i)=>`<text x="${x(i)}" y="${H-4}" font-family="IBM Plex Mono" font-size="7" fill="#8B8C7E" text-anchor="middle">${m}</text>`).join('');
+  ghi.forEach((v,i)=>{const bh=(v/maxG)*(H-34);g+=`<rect x="${(x(i)-barW/2).toFixed(1)}" y="${(baseY-bh).toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" fill="#B8862F" rx="1.5"/>`;});
+  g+=`<text x="2" y="12" font-family="IBM Plex Mono" font-size="7.5" fill="#8B8C7E">${maxG} kWh/m²/day peak</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="monthly solar radiation">${g}</svg>`;
+}
+function psychroChart(c,s){
+  const W=300,H=200,pad=28,tMin=-10,tMax=40,wMax=30;
+  const x=Tc=>pad+(Tc-tMin)/(tMax-tMin)*(W-pad-10),y=Wv=>H-pad-(Wv/wMax)*(H-pad-14);
+  let g='';
+  for(let T=tMin;T<=tMax;T+=10){g+=`<line x1="${x(T)}" y1="${pad-10}" x2="${x(T)}" y2="${H-pad}" stroke="#EDE7D4" stroke-width="1"/><text x="${x(T)}" y="${H-pad+12}" font-family="IBM Plex Mono" font-size="7.5" fill="#8B8C7E" text-anchor="middle">${T}°</text>`;}
+  for(let Wv=0;Wv<=wMax;Wv+=10){g+=`<line x1="${pad}" y1="${y(Wv)}" x2="${W-10}" y2="${y(Wv)}" stroke="#EDE7D4" stroke-width="1"/><text x="2" y="${y(Wv)+3}" font-family="IBM Plex Mono" font-size="7.5" fill="#8B8C7E">${Wv}</text>`;}
+  [20,40,60,80,100].forEach(rh=>{let d='';for(let T=tMin;T<=tMax;T+=2){const w=Math.min(wMax,humidityRatio(T,rh/100));d+=(T===tMin?'M':'L')+x(T).toFixed(1)+' '+y(w).toFixed(1)+' ';}
+    g+=`<path d="${d}" fill="none" stroke="${rh===100?'#3E5C6B':'#C4D2D6'}" stroke-width="${rh===100?1.6:1}"/>`;});
+  const temp=monthlyTemp(c,s),rh=monthlyRH(c,s);
+  temp.forEach((T,i)=>{const w=Math.min(wMax,humidityRatio(T,rh[i]/100));g+=`<circle cx="${x(T).toFixed(1)}" cy="${y(w).toFixed(1)}" r="3" fill="#C1622E" stroke="#1F2421" stroke-width="0.8"/>`;});
+  g+=`<text x="${W/2}" y="14" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#54584F">dry-bulb °C → · humidity ratio g/kg ↑ · RH 20–100%</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="psychrometric chart">${g}</svg>`;
+}
+function windRoseSVG(c){
+  const W=220,H=220,cx=W/2,cy=H/2,maxR=82,data=windRose(c),maxFreq=Math.max(...data.map(d=>d.freq)),maxSpeed=Math.max(...data.map(d=>d.speed),1);
+  const pt=(r,angleDeg)=>{const a=angleDeg*Math.PI/180;return[cx+r*Math.sin(a),cy-r*Math.cos(a)];};
+  let g=[0.33,0.66,1].map(f=>`<circle cx="${cx}" cy="${cy}" r="${(maxR*f).toFixed(1)}" fill="none" stroke="#E4DCC4" stroke-width="1"/>`).join('');
+  data.forEach((d,i)=>{
+    const angle=i*45,half=15,rOuter=Math.max(8,(d.freq/maxFreq)*maxR),rInner=6;
+    const[x1,y1]=pt(rOuter,angle-half),[x2,y2]=pt(rOuter,angle+half),[x3,y3]=pt(rInner,angle+half),[x4,y4]=pt(rInner,angle-half);
+    const col=lerpRgb('#C4D2D6','#9B4A21',clamp01(d.speed/maxSpeed));
+    g+=`<path d="M ${x1.toFixed(1)} ${y1.toFixed(1)} A ${rOuter.toFixed(1)} ${rOuter.toFixed(1)} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)} L ${x3.toFixed(1)} ${y3.toFixed(1)} A ${rInner} ${rInner} 0 0 0 ${x4.toFixed(1)} ${y4.toFixed(1)} Z" fill="${col}" stroke="#1F2421" stroke-width="0.6"/>`;
+  });
+  data.forEach((d,i)=>{const[lx,ly]=pt(maxR+14,i*45);g+=`<text x="${lx.toFixed(1)}" y="${(ly+3).toFixed(1)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="#54584F">${d.dir}</text>`;});
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="wind rose">${g}</svg>`;
+}
+function windSpeedChart(c,s){
+  const W=300,H=86,pad=22,wind=monthlyWind(c,s),maxW=Math.ceil(Math.max(...wind)),x=i=>pad+i*(W-pad-6)/11,y=v=>H-18-(v/maxW)*(H-34);
+  let g=MONTHS.map((m,i)=>`<text x="${x(i)}" y="${H-4}" font-family="IBM Plex Mono" font-size="7" fill="#8B8C7E" text-anchor="middle">${m}</text>`).join('');
+  const path=wind.map((v,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)).join(' ');
+  g+=`<path d="${path}" fill="none" stroke="#3E5C6B" stroke-width="2"/>`+wind.map((v,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2" fill="#3E5C6B"/>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="monthly average wind speed">${g}</svg>`;
+}
+
+/* ---- climate sub-tabs ---- */
+const CLIMATE_TABS=['overview','psychro','wind','extremes'];
+const CLIMATE_LABEL={overview:'Overview',psychro:'Psychrometric',wind:'Wind',extremes:'Extremes'};
+let currentClimateTab='overview';
+function overviewTabHTML(c){
+  return `
+    <div class="climate-stat-row">
+      <div class="cstat"><div class="v">${hdd(c,scn)}</div><div class="k">HDD18 (K·d/yr)</div></div>
+      <div class="cstat"><div class="v">${cdd(c,scn)}</div><div class="k">CDD18 (K·d/yr)</div></div>
+      <div class="cstat"><div class="v">${monthlyGHI(c,scn).reduce((a,b)=>a+b,0).toFixed(0)}</div><div class="k">GHI (kWh/m²/yr)</div></div>
+      <div class="cstat"><div class="v">${Math.round(monthlyRH(c,scn).reduce((a,b)=>a+b,0)/12)}</div><div class="k">Avg RH (%)</div></div>
+    </div>
+    <div class="chartwrap" style="margin-top:10px;">${tempPrecipChart(c,scn)}
+      <div class="chart-caption"><span>— temp (°C)</span><span>▮ precip (mm)</span></div>
+    </div>
+    <div class="chartwrap" style="margin-top:10px;">${ghiChart(c,scn)}</div>
+    <div class="chartwrap" style="margin-top:10px;">${rhChart(c,scn)}
+      <div class="chart-caption"><span>— relative humidity (%)</span></div>
+    </div>`;
+}
+function psychroTabHTML(c){return `<div class="chartwrap">${psychroChart(c,scn)}</div>`;}
+function windTabHTML(c){
+  const rose=windRose(c),prevailing=rose.reduce((best,d)=>d.freq>best.freq?d:best,rose[0]);
+  return `
+    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;">
+      <div style="flex:0 0 200px;">${windRoseSVG(c)}</div>
+      <div style="flex:1;min-width:160px;">
+        <div class="kvline">Prevailing: <b>${prevailing.dir}</b> · ${prevailing.speed.toFixed(1)} m/s avg</div>
+        <div class="heat-legend" style="margin-top:8px;"><div class="heat-legend-bar" style="background:linear-gradient(to right,#C4D2D6,#9B4A21);"></div><div class="heat-legend-labels"><span>calm</span><span>strong</span></div></div>
+        <div class="chartwrap" style="margin-top:10px;">${windSpeedChart(c,scn)}
+          <div class="chart-caption"><span>— avg wind speed (m/s)</span></div>
+        </div>
+      </div>
+    </div>`;
+}
+function extremesTabHTML(c){
+  const e=extremeEvents(c,scn),e0=extremeEvents(c,0);
+  const delta=(now,base)=>{if(now===base)return'';const up=now>base;return`<div class="sub" style="color:${up?'var(--rust)':'var(--moss)'};font-family:var(--mono);">${up?'▲':'▼'} ${Math.abs(now-base)} vs present</div>`;};
+  return `
+    <div class="climate-stat-row" style="grid-template-columns:repeat(2,1fr);">
+      <div class="cstat"><div class="v">${e.heatwave}</div><div class="k">heatwave days &gt;30°C</div>${delta(e.heatwave,e0.heatwave)}</div>
+      <div class="cstat"><div class="v">${e.frost}</div><div class="k">frost days &lt;0°C</div>${delta(e.frost,e0.frost)}</div>
+      <div class="cstat"><div class="v">${e.heavyRain}</div><div class="k">heavy-rain days &gt;20mm</div>${delta(e.heavyRain,e0.heavyRain)}</div>
+      <div class="cstat"><div class="v">${e.maxGust}</div><div class="k">max gust (km/h)</div>${delta(e.maxGust,e0.maxGust)}</div>
+    </div>
+    <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink-faint);margin-top:8px;">Mock annual extremes, ${SCENARIOS_LONG[scn]}.</div>`;
+}
+function renderClimateTabContent(key,c){
+  if(key==='overview')return overviewTabHTML(c);
+  if(key==='psychro')return psychroTabHTML(c);
+  if(key==='wind')return windTabHTML(c);
+  if(key==='extremes')return extremesTabHTML(c);
+}
+function wireClimateTabs(c){
+  document.querySelectorAll('.climate-tab').forEach(b=>b.addEventListener('click',()=>{
+    currentClimateTab=b.dataset.ctab;
+    document.querySelectorAll('.climate-tab').forEach(x=>x.classList.toggle('active',x===b));
+    document.getElementById('climateTabContent').innerHTML=renderClimateTabContent(currentClimateTab,c);
+  }));
+}
+
+/* ===================== 3D PERFORMANCE VIEWER =====================
+   A small rotatable building model recolored as a heatmap, with several
+   diagrams to click through. Mock formulas only — visual demo of how the
+   tool would surface Honeybee/EnergyPlus-style results. */
+const HEAT_RAMP=[[0.00,'#2E6F95'],[0.25,'#3FA796'],[0.50,'#E8C547'],[0.75,'#D9792F'],[1.00,'#B23A2F']];
+function hexToRgb(h){const n=parseInt(h.slice(1),16);return{r:(n>>16)&255,g:(n>>8)&255,b:n&255};}
+function lerpRgb(a,b,f){const pa=hexToRgb(a),pb=hexToRgb(b);return`rgb(${Math.round(pa.r+(pb.r-pa.r)*f)},${Math.round(pa.g+(pb.g-pa.g)*f)},${Math.round(pa.b+(pb.b-pa.b)*f)})`;}
+function heatColor(t){t=Math.max(0,Math.min(1,t));for(let i=0;i<HEAT_RAMP.length-1;i++){const[t0,c0]=HEAT_RAMP[i],[t1,c1]=HEAT_RAMP[i+1];if(t>=t0&&t<=t1)return lerpRgb(c0,c1,(t-t0)/(t1-t0));}return HEAT_RAMP[HEAT_RAMP.length-1][1];}
+function clamp01(v){return Math.max(0,Math.min(1,v));}
+
+const DIAGRAM_META={
+ solar:{label:'Solar exposure',caption:c=>`Fixed by ${(c.lat||0).toFixed(1)}° latitude — independent of climate scenario.`},
+ overheat:{label:'Overheating risk',caption:c=>`${c.sim.oh[scn]} h/yr above 26°C — ${SCENARIOS_LONG[scn]}.`},
+ heatloss:{label:'Winter heat loss',caption:c=>`Heating-season envelope loss, relative — ${SCENARIOS_LONG[scn]}.`},
+ comfort:{label:'Thermal comfort',caption:c=>`${c.sim.comfort[scn]}% ASHRAE-55 adaptive comfort — ${SCENARIOS_LONG[scn]}.`},
+};
+let currentDiagram='overheat';
+function sunWeight(facade,lat){
+  const south=lat<0,sunSide=south?'N':'S',shadeSide=south?'S':'N';
+  const map={[sunSide]:1.0,[shadeSide]:0.22,E:0.62,W:0.74,RoofS:south?0.28:1.05,RoofN:south?1.05:0.28};
+  return map[facade]??0.5;
+}
+function diagramIntensity(key,c,facade,s){
+  const lat=c.lat||45;
+  if(key==='solar') return clamp01(sunWeight(facade,lat)*0.92);
+  if(key==='overheat'){const norm=clamp01(c.sim.oh[s]/2400);return clamp01(norm*0.55+sunWeight(facade,lat)*0.45);}
+  if(key==='heatloss'){const warmth=Math.max(0,(48-Math.abs(lat)))/48;const hl=[1,0.82,0.66][s];
+    const inv=1-sunWeight(facade,lat);const roofBoost=facade.startsWith('Roof')?1.08:0.92;
+    return clamp01((0.32+(1-warmth)*0.5)*hl*inv*roofBoost+0.12);}
+  if(key==='comfort'){const discomfort=clamp01(1-c.sim.comfort[s]/100);const roofTilt=facade.startsWith('Roof')?1.08:1.0;return clamp01(discomfort*roofTilt);}
+  return 0.5;
+}
+function rngLocal(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}
+  return()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
+function makeHeatTexture(intensity,seedStr){
+  const size=128,canvas=document.createElement('canvas');canvas.width=size;canvas.height=size;
+  const ctx=canvas.getContext('2d'),base=heatColor(intensity);
+  ctx.fillStyle=base;ctx.fillRect(0,0,size,size);
+  const rnd=rngLocal(seedStr);
+  for(let i=0;i<4;i++){
+    const hotT=clamp01(intensity+(rnd()-0.3)*0.4);
+    const x=rnd()*size,y=rnd()*size,r=18+rnd()*42;
+    const grad=ctx.createRadialGradient(x,y,0,x,y,r);
+    grad.addColorStop(0,heatColor(hotT));grad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.globalAlpha=0.5;ctx.fillStyle=grad;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  const tex=new THREE.CanvasTexture(canvas);tex.needsUpdate=true;return tex;
+}
+
+let V3D=null;
+function disposeViewer(){
+  if(!V3D)return;
+  cancelAnimationFrame(V3D.raf);
+  V3D.container.removeEventListener('pointerdown',V3D.onDown);
+  window.removeEventListener('pointermove',V3D.onMove);
+  window.removeEventListener('pointerup',V3D.onUp);
+  window.removeEventListener('resize',V3D.onResize);
+  V3D.scene.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){if(o.material.map)o.material.map.dispose();o.material.dispose();}});
+  V3D.renderer.dispose();
+  V3D=null;
+}
+function buildingDims(c){
+  const rnd=rngLocal(c.id+'dims');
+  const area=c.area||120,aspect=1.1+rnd()*0.6;
+  const W=Math.sqrt(area*aspect),D=Math.sqrt(area/aspect);
+  const H=Math.max(2.4,Math.min(7,(c.height||6)*0.55));
+  const pitch=c.roofPitch!=null?c.roofPitch:35;
+  const eave=Math.min(1.2,(c.eaveDepth||0.5));
+  return{W,D,H,pitch,eave};
+}
+function createViewer(container,c){
+  if(typeof THREE==='undefined'){container.innerHTML='<div class="viewer3d-fallback">3D preview unavailable (three.js did not load)</div>';return;}
+  try{
+    const w=container.clientWidth||300,h=container.clientHeight||210;
+    const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+    renderer.setSize(w,h);
+    container.appendChild(renderer.domElement);
+    const scene=new THREE.Scene();
+    const camera=new THREE.PerspectiveCamera(38,w/h,0.1,200);
+
+    const {W,D,H,pitch,eave}=buildingDims(c);
+    const pitchRad=pitch*Math.PI/180;
+    const rise=(D/2)*Math.tan(pitchRad);
+    const overhang=D/2+eave;
+    const slopeLen=Math.hypot(rise,overhang);
+    const tilt=Math.atan2(overhang,-rise);
+
+    const group=new THREE.Group();
+    const meshes={};
+    function addPlane(key,geomW,geomH,pos,rotY,rotX){
+      const geo=new THREE.PlaneGeometry(geomW,geomH);
+      const mat=new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide});
+      const mesh=new THREE.Mesh(geo,mat);
+      mesh.position.set(pos[0],pos[1],pos[2]);
+      if(rotY)mesh.rotation.y=rotY;
+      if(rotX)mesh.rotation.x=rotX;
+      const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:0x1F2421}));
+      mesh.add(edges);
+      group.add(mesh);meshes[key]=mesh;
+    }
+    addPlane('S',W,H+rise,[0,(H+rise)/2,D/2]);
+    addPlane('N',W,H+rise,[0,(H+rise)/2,-D/2],Math.PI);
+    addPlane('E',D,H+rise,[W/2,(H+rise)/2,0],-Math.PI/2);
+    addPlane('W',D,H+rise,[-W/2,(H+rise)/2,0],Math.PI/2);
+    addPlane('RoofS',W+2*eave,slopeLen,[0,H+rise/2,overhang/2],0,tilt);
+    addPlane('RoofN',W+2*eave,slopeLen,[0,H+rise/2,-overhang/2],0,-tilt);
+
+    const groundGeo=new THREE.PlaneGeometry(Math.max(W,D)*2.6,Math.max(W,D)*2.6);
+    const ground=new THREE.Mesh(groundGeo,new THREE.MeshBasicMaterial({color:0xEDE6D2,side:THREE.DoubleSide}));
+    ground.rotation.x=-Math.PI/2;ground.position.y=0;group.add(ground);
+
+    scene.add(group);
+
+    const centerY=(H+rise)/2;
+    const size=Math.max(W,D,H+rise);
+    const radius=size*2.4;
+    let az=Math.PI*0.28,pol=Math.PI*0.36,dragging=false,lastX=0,lastY=0;
+    function place(){
+      camera.position.set(radius*Math.sin(pol)*Math.sin(az),radius*Math.cos(pol)+centerY*0.4,radius*Math.sin(pol)*Math.cos(az));
+      camera.lookAt(0,centerY*0.55,0);
+    }
+    place();
+
+    const onDown=e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;};
+    const onMove=e=>{if(!dragging)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
+      az-=dx*0.006;pol=Math.max(0.18,Math.min(1.45,pol-dy*0.006));place();};
+    const onUp=()=>{dragging=false;};
+    const onResize=()=>{const nw=container.clientWidth||w,nh=container.clientHeight||h;renderer.setSize(nw,nh);camera.aspect=nw/nh;camera.updateProjectionMatrix();};
+    container.addEventListener('pointerdown',onDown);
+    window.addEventListener('pointermove',onMove);
+    window.addEventListener('pointerup',onUp);
+    window.addEventListener('resize',onResize);
+
+    function tick(){
+      V3D.raf=requestAnimationFrame(tick);
+      if(!dragging)az+=0.0014;
+      place();
+      renderer.render(scene,camera);
+    }
+    V3D={renderer,scene,camera,group,meshes,container,onDown,onMove,onUp,onResize,raf:0};
+    tick();
+    applyDiagram(currentDiagram,c);
+  }catch(err){
+    container.innerHTML='<div class="viewer3d-fallback">3D preview failed to initialise</div>';
+  }
+}
+function applyDiagram(key,c){
+  if(!V3D)return;
+  Object.keys(V3D.meshes).forEach(facade=>{
+    const mesh=V3D.meshes[facade];
+    const t=diagramIntensity(key,c,facade,scn);
+    const tex=makeHeatTexture(t,c.id+facade+key+scn);
+    if(mesh.material.map)mesh.material.map.dispose();
+    mesh.material.map=tex;mesh.material.needsUpdate=true;
+  });
+  const cap=document.getElementById('diagramCaption');
+  if(cap)cap.textContent=DIAGRAM_META[key].caption(c);
+  document.querySelectorAll('.sim-tab').forEach(b=>b.classList.toggle('active',b.dataset.diagram===key));
+}
+function wireDiagramTabs(c){
+  document.querySelectorAll('.sim-tab').forEach(b=>b.addEventListener('click',()=>{
+    currentDiagram=b.dataset.diagram;applyDiagram(currentDiagram,c);
+  }));
+}
+
+function renderPanel(){
+  disposeViewer();
+  const el=document.getElementById('csPanel');
+  if(!selectedId){el.innerHTML=`<div class="empty-panel"><div class="big">Select a case study</div><div>Click a map point or an unmapped chip.<br>Panel switches with the scenario (${SCENARIOS[scn]}).</div></div>`;return;}
+  const c=byId(selectedId);
+  const wallLabel={timber:'Lightweight timber',hybrid:'Timber + masonry',masonry:'Solid masonry',other:'Other'}[c.wallType]||'<span class="nodata">NO_DATA</span>';
+  const oh=c.sim&&c.sim.oh?c.sim.oh[scn]:null, cf=c.sim&&c.sim.comfort?c.sim.comfort[scn]:null;
+  el.innerHTML=`
+    <div class="panel-eyebrow">${c.region} · ${c.id} · ${c.country||'—'}</div>
+    <div class="cs-title">${c.name||c.id}</div>
+    <div class="cs-sub">${c.hasCoord?c.lat.toFixed(3)+'°, '+c.lon.toFixed(3)+'°':'<span class="nodata">no coordinates</span>'} &nbsp;·&nbsp; ${SCENARIOS_LONG[scn]}${c.year?' · built '+c.year:''}</div>
+
+    <div class="block">
+      <div class="block-head"><span class="n">1</span> Building <span style="font-family:var(--mono);font-size:9.5px;color:var(--ink-faint);margin-left:auto">schematic from metrics</span></div>
+      <div class="photo-box" style="overflow:hidden;border:1px solid var(--line);">${houseSVG(c)}</div>
+    </div>
+
+    <div class="block">
+      <div class="block-head"><span class="n">2</span> EPW station climate <span class="cat-pill cat-climate">climate</span></div>
+      <div class="kvline">Assigned station: <b>${c.epw||noData}</b></div>
+      <div class="kvline">Elevation: <b>${fmt(c.elev,' m',0)}</b></div>
+      <div class="koppen-strip">
+        ${c.koppen.map((k,i)=>`<div class="koppen-box ${i===scn?'current':''}"><div class="scn">${SCENARIOS[i]}</div><div class="code">${k||'<span class="nodata" style="font-size:10px">—</span>'}</div></div>`).join('')}
+      </div>
+      <div class="diagram-tabs">${CLIMATE_TABS.map(k=>`<button class="diagram-tab climate-tab ${k===currentClimateTab?'active':''}" data-ctab="${k}">${CLIMATE_LABEL[k]}</button>`).join('')}</div>
+      <div id="climateTabContent">${renderClimateTabContent(currentClimateTab,c)}</div>
+    </div>
+
+    <div class="block">
+      <div class="block-head"><span class="n">3</span> Metrics &amp; tags <span class="cat-pill cat-metric">metrics</span></div>
+      <table class="metric-table">
+        <tr><td class="k">Compactness ψ</td><td class="v">${fmt(c.psi,'',3)}</td></tr>
+        <tr><td class="k">V / A</td><td class="v">${fmt(c.va,'',2)}</td></tr>
+        <tr><td class="k">Thermal mass (walls)</td><td class="v">${fmt(c.thermalMass,' TM/m²',0)}</td></tr>
+        <tr><td class="k">Window-to-wall ratio</td><td class="v">${fmt(c.wwr,' %',0)}</td></tr>
+        <tr><td class="k">Wall thickness</td><td class="v">${fmt(c.wallThk,' m',3)}</td></tr>
+        <tr><td class="k">U-value wall</td><td class="v">${fmt(c.uWall,' W/m²K',2)}</td></tr>
+        <tr><td class="k">Roof pitch</td><td class="v">${fmt(c.roofPitch,'°',0)}</td></tr>
+        <tr><td class="k">Eave depth (avg)</td><td class="v">${fmt(c.eaveDepth,' m',3)}</td></tr>
+        <tr><td class="k">Rake depth (avg)</td><td class="v">${fmt(c.rakeDepth,' m',3)}</td></tr>
+        <tr><td class="k">Hearth centrality</td><td class="v">${fmt(c.hearth,'',3)}</td></tr>
+        <tr><td class="k">Structure</td><td class="v">${c.structure||'<span class="nodata">NO_DATA</span>'}</td></tr>
+        <tr><td class="k">Area · height</td><td class="v">${fmt(c.area,' m²',0)} · ${fmt(c.height,' m',1)}</td></tr>
+      </table>
+      <div class="tagmatrix">${STRATEGIES.map(s=>`<span class="tagchip ${c.tags[s.key]?'on':'off'}">${c.tags[s.key]?'✓ ':'○ '}${s.label}</span>`).join('')}</div>
+    </div>
+
+    <div class="block">
+      <div class="block-head"><span class="n">4</span> Simulation <span class="cat-pill cat-sim">Honeybee/E+</span></div>
+      <div class="diagram-tabs" id="diagramTabs">
+        ${Object.keys(DIAGRAM_META).map(k=>`<button class="diagram-tab sim-tab ${k===currentDiagram?'active':''}" data-diagram="${k}">${DIAGRAM_META[k].label}</button>`).join('')}
+      </div>
+      <div class="viewer3d-canvas-box" id="viewer3d"><div class="viewer3d-hint">drag to rotate</div></div>
+      <div class="heat-legend"><div class="heat-legend-bar"></div><div class="heat-legend-labels"><span>low</span><span>high</span></div></div>
+      <div class="diagram-caption" id="diagramCaption"></div>
+      <div class="sim-grid" style="margin-top:10px;">
+        <div class="sim-cell"><div class="k">Overheating hours (${SCENARIOS[scn]})</div><div class="v">${oh!=null?oh:'<span class="nodata" style="font-size:12px">NO_DATA</span>'}<span class="u">${oh!=null?' h':''}</span></div></div>
+        <div class="sim-cell"><div class="k">Adaptive comfort ASHRAE-55</div><div class="v">${cf!=null?cf:'<span class="nodata" style="font-size:12px">NO_DATA</span>'}<span class="u">${cf!=null?' %':''}</span></div></div>
+      </div>
+    </div>
+
+    <div class="block" style="margin-bottom:0;">
+      <div class="block-head"><span class="n">5</span> Recommendations <span style="font-family:var(--mono);font-size:9.5px;color:var(--ink-faint);margin-left:auto">provisional</span></div>
+      <div class="rec-wrap">
+        <div class="rec-block ${scn===1?'active':''}"><div class="rec-head"><span>2050 · SSP5-8.5</span>${scn===1?'<span>● current</span>':''}</div><div class="rec-text">${recsFor(c,1).map(r=>'• '+r).join('<br>')}</div></div>
+        <div class="rec-block ${scn===2?'active':''}"><div class="rec-head"><span>2080 · SSP5-8.5</span>${scn===2?'<span>● current</span>':''}</div><div class="rec-text">${recsFor(c,2).map(r=>'• '+r).join('<br>')}</div></div>
+      </div>
+    </div>`;
+  createViewer(document.getElementById('viewer3d'),c);
+  wireDiagramTabs(c);
+  wireClimateTabs(c);
+}
+
+
+function renderPills(){
+  document.getElementById('scenarioPills').innerHTML=SCENARIOS_LONG.map((l,i)=>`<button class="scenario-pill ${i===scn?'active':''}" data-idx="${i}">${l}</button>`).join('');
+  document.querySelectorAll('.scenario-pill').forEach(b=>b.addEventListener('click',()=>{scn=+b.dataset.idx;renderPills();refreshMap();applyFilter();renderPanel();renderLegend();}));
+}
+document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  b.classList.add('active');document.getElementById('view-'+b.dataset.tab).classList.add('active');
+  if(b.dataset.tab==='cases'&&map)setTimeout(()=>map.invalidateSize(),60);}));
+
+/* TAB II */
+const FINDINGS=[
+ {group:'Prescriptions',items:[
+  {id:'roofpitch',title:'Roof pitch is a summer strategy',eyebrow:'Prescription · roof',
+   body:`<p>The vernacular steep pitch behaves as a seasonal split. A steeper pitch increases winter heat loss through stronger convection in the larger attic volume, but reduces summer cooling load — on the order of <span class="nodata">~9% (to confirm)</span> — by driving stack ventilation through the attic buffer.</p><p>It therefore correlates with cooling-degree-days, not heating-degree-days. The Kaltdach is primarily a summer thermal buffer.</p><div class="prescription"><div class="pl">Prescription</div>Where future CDD rises, retain or increase pitch and open ridge/eave vents so the attic buffer is exploited. Where the load stays heating-dominated, steep pitch is a winter penalty with little payoff.</div>`},
+  {id:'mass',title:'Thermal mass under warming',eyebrow:'Prescription · envelope',
+   body:`<p>High mass rewards large diurnal or seasonal swing — the arid-zone adobe and masonry case. Under warming, mass without an assured night-flush path re-radiates stored daytime heat into the night, eroding comfort.</p><div class="prescription"><div class="pl">Prescription</div>Keep mass where the swing is large and night ventilation is reliable; pair it with night-purge openings wherever cooling load grows. In humid-tropical drift, prefer lightweight, ventilated, raised construction.</div>`},
+  {id:'eaves',title:'Eaves, shading and the solar caveat',eyebrow:'Prescription · shading',
+   body:`<p>Deep eaves earn their cost where solar load is significant. But shading geometry cannot be transferred by climate analogue: solar angles are fixed by latitude, not by the climate envelope.</p><div class="caveat"><div class="pl">Caveat</div>A site drifting Cfb→Cfa keeps its original sun angles. Eave depth tuned for a southern analogue's sun will over- or under-shade at the original latitude. Size overhangs to the local solar geometry under the future load.</div>`},
+  {id:'wwr',title:'Glazing and window-to-wall ratio',eyebrow:'Prescription · openings',
+   body:`<p>Low WWR minimises the dominant load in strongly heating- or cooling-dominated climates, but it also limits night-purge ventilation and daylight. Several corpus buildings sit at WWR = 0 (no windows in the recorded elevations), which flags a ventilation question under warming.</p><div class="prescription"><div class="pl">Prescription</div>In warming mixed climates, decouple the roles: keep solar-gain glazing modest on the sun-facing side, but add operable, shaded openings for cross- and night-ventilation as cooling load rises.</div>`}]},
+ {group:'General findings',items:[
+  {id:'convergence',title:'Cross-cultural convergence',eyebrow:'Finding · theory',
+   body:`<p>Steep roofs appearing independently in Norway, Bavaria and Japan is the strongest counter-evidence to the cultural-randomness hypothesis. Independent convergence on the same form under similar climate supports selection pressure (Rapoport) over random cultural transmission.</p><p>This is the argument that lets the corpus be read as climate-responsive rather than as an accident of cultural diffusion.</p>`},
+  {id:'confounding',title:'Geographic confounding is real',eyebrow:'Finding · method',
+   body:`<p>Cultural and climate variables co-vary geographically, so simple averaging is insufficient. Country and altitude zone are confound controls in the logistic regression.</p><p>The methodological value is not the broad correlations — which risk appearing obvious — but the EPW-matched binary tag matrix, the outlier analysis, and the threshold quantification.</p>`},
+  {id:'tmyx',title:'TMYx already embeds warming',eyebrow:'Finding · data',
+   body:`<p>The 2011–2025 TMYx normals carry recent warming, so no stations classify as Dfb under TMYx even where 1961–1990 normals would. Significant rather than an error: the present-day baseline is itself shifted, compressing the apparent distance to the 2050 and 2080 envelopes.</p>`}]}];
+function buildFindings(){
+  const menu=document.getElementById('findingsMenu');
+  FINDINGS.forEach(g=>{const l=document.createElement('div');l.className='fm-group-label';l.textContent=g.group;menu.appendChild(l);
+    g.items.forEach(it=>{const b=document.createElement('button');b.className='fm-item';b.textContent=it.title;b.dataset.fid=it.id;b.addEventListener('click',()=>showFinding(it.id));menu.appendChild(b);});});
+  showFinding(FINDINGS[0].items[0].id);
+}
+function showFinding(id){let it;FINDINGS.forEach(g=>g.items.forEach(x=>{if(x.id===id)it=x;}));
+  document.querySelectorAll('.fm-item').forEach(b=>b.classList.toggle('active',b.dataset.fid===id));
+  document.getElementById('findingsContent').innerHTML=`<div class="fc-eyebrow">${it.eyebrow}</div><h2 class="fc-title">${it.title}</h2><div class="fc-body">${it.body}</div>`;}
+
+/* TAB III */
+function buildCorpusStats(){
+  const total=CASES.length,coord=CASES.filter(c=>c.hasCoord).length,geom=CASES.filter(c=>c.hasGeom).length,
+    kg=CASES.filter(c=>c.koppen[0]).length,simc=CASES.filter(c=>c.sim&&c.sim.oh&&c.sim.oh[0]!=null).length;
+  const stats=[[total,'case studies'],[coord,'with coordinates'],[geom,'with full geometry'],[kg+' / '+simc,'Köppen / sim done']];
+  document.getElementById('corpusStats').innerHTML=stats.map(s=>`<div class="cstat"><div class="v">${s[0]}</div><div class="k">${s[1]}</div></div>`).join('');
+}
+function buildPipeline(){
+  const steps=[['EPW ingestion','TMYx + CMIP6 morph'],['Köppen','classify 00/50/80'],['DXF metrics','ψ · WWR · mass · eaves'],['Tag matrix','binary, EPW-matched'],['Logistic regression','confound controls'],['GH / EnergyPlus','2-zone simulation'],['Recommendations','ranked typologies']];
+  const w=128,h=58,gap=20,x0=4,y=30,W=x0+steps.length*(w+gap),H=140;
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="pipeline">`;
+  steps.forEach((st,i)=>{const x=x0+i*(w+gap),f=i>=5?'#C1622E':'#3E5C6B';
+    s+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="#fff" stroke="${f}" stroke-width="1.6"/><rect x="${x}" y="${y}" width="5" height="${h}" rx="2" fill="${f}"/>`;
+    s+=`<text x="${x+14}" y="${y+24}" font-family="Fraunces" font-size="13" font-weight="600" fill="#1F2421">${st[0]}</text><text x="${x+14}" y="${y+42}" font-family="IBM Plex Mono" font-size="9" fill="#54584F">${st[1]}</text>`;
+    if(i<steps.length-1){const ax=x+w,axe=x+w+gap;s+=`<line x1="${ax}" y1="${y+h/2}" x2="${axe-3}" y2="${y+h/2}" stroke="#8B8C7E" stroke-width="1.4"/><path d="M ${axe-7} ${y+h/2-4} L ${axe-2} ${y+h/2} L ${axe-7} ${y+h/2+4}" fill="none" stroke="#8B8C7E" stroke-width="1.4"/>`;}});
+  s+=`<text x="${x0}" y="18" font-family="IBM Plex Mono" font-size="9" fill="#3E5C6B">DESCRIPTIVE — correlation</text><text x="${x0+5*(w+gap)}" y="18" font-family="IBM Plex Mono" font-size="9" fill="#C1622E">PRESCRIPTIVE — validated</text><text x="${x0}" y="${H-8}" font-family="IBM Plex Mono" font-size="9" fill="#92392A">△ simulation bridges the naturalistic fallacy between the two halves</text></svg>`;
+  document.getElementById('pipelineCard').innerHTML=s;
+}
+document.getElementById('footer').innerHTML='Morph Shift · module m_II · <b>MOCKUP</b> built on cs_output_v5.xlsx. Real workbook values are kept; every empty field (Köppen present/2050/2080, Honeybee/E+ simulation, missing geometry, names, coordinates) is filled with plausible <b>demo data</b> so the whole tool is exercised. Nothing here is scientifically validated — it shows how the tool works. Building images are schematics drawn from the metrics; recommendations are heuristic.';
+
+renderPills();buildFilters();initMap();applyFilter();renderPanel();buildFindings();buildCorpusStats();buildPipeline();seedDxfFromCases();renderAdminView();
+</script>
+</body>
+</html>
